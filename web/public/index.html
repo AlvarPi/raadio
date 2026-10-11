@@ -44,6 +44,13 @@
   .stations button.on { background: var(--accent-soft); color: var(--accent); }
   .stations .golive { margin-left: auto; color: var(--accent); border: 1px solid var(--accent); }
   .stations .golive.playing { background: var(--accent); color: #fff; }
+  .stations .recnow { color: var(--accent); border: 1px solid var(--accent); }
+  .stations .golive + .recnow { margin-left: 0; }
+  .stations .recnow.on { background: var(--accent); color: #fff; animation: pulse 1.6s infinite; }
+  .durs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .durs button { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 10px; padding: 12px 0;
+    font: inherit; font-weight: 600; cursor: pointer; }
+  .durs button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   #player.onair #pSeek, #player.onair #pBack, #player.onair #pFwd { visibility: hidden; }
   .stn { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
   .timer-form { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px;
@@ -303,7 +310,8 @@ function renderKava(main) {
   if (!stationById(selectedStation)) selectedStation = stations[0]?.id;
   const onairNow = current?.onair === selectedStation;
   const chips = `<div class="stations">${stations.map((s) => `<button data-st="${s.id}" class="${s.id === selectedStation ? "on" : ""}">${esc(s.short || s.name)}</button>`).join("")}
-    <button class="golive ${onairNow ? "playing" : ""}" id="goLive">${onairNow ? "❚❚ Otse" : "▶ Otse"}</button></div>`;
+    <button class="golive ${onairNow ? "playing" : ""}" id="goLive">${onairNow ? "❚❚ Otse" : "▶ Otse"}</button>
+    <button class="recnow ${recNowFor(selectedStation) ? "on" : ""}" id="recNow">${recNowFor(selectedStation) ? "⏺ Salvestab" : "⏺ Salvesta"}</button></div>`;
   const schedule = schedules[selectedStation];
   if (!schedule) {
     const st = stationById(selectedStation);
@@ -347,6 +355,8 @@ function bindStations(main) {
   });
   const g = $("#goLive", main);
   if (g) g.onclick = () => (current?.onair === selectedStation && !audio.paused ? audio.pause() : playLive(selectedStation));
+  const rn = $("#recNow", main);
+  if (rn) rn.onclick = () => openRecNow(selectedStation);
 }
 
 function openSheet(ep) {
@@ -433,6 +443,47 @@ const ICON = {
   phone: '<svg viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>',
   del: '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/></svg>',
 };
+
+// --- salvesta kohe (otse-eeter valitud ajaks) ---
+const REC_DURS = [30, 60, 90, 120, 150, 180];
+const recNowFor = (sid) => config.episodes.find((e) => e.id.startsWith(`now:${sid}:`) && Date.parse(e.end) > Date.now());
+function openRecNow(sid) {
+  const st = stationById(sid); if (!st) return;
+  const cur = recNowFor(sid);
+  let dur = store.get("recNowDur", 60);
+  const p = $("#sheetPanel");
+  const draw = () => {
+    p.innerHTML = `<div class="stn">${esc(st.name)}</div><h3>Salvesta otse-eetrit</h3>
+      ${cur ? `<p>Salvestab praegu (alates ${fmtTime(cur.start)}) kuni <b>${fmtTime(cur.end)}</b>. Üle tunni pikk salvestus jaguneb täistundide kaupa.</p>
+        <button class="btn primary" id="rnStop">■ Lõpeta kohe</button>`
+      : `<p>Kui kaua salvestada? Salvestus algab mõne sekundi jooksul; üle tunni pikk salvestus jaguneb täistundide kaupa.</p>
+        <div class="durs">${REC_DURS.map((m) => `<button data-dur="${m}" class="${m === dur ? "on" : ""}">${m} min</button>`).join("")}</div>
+        <p style="margin-top:4px">Lõpeb umbes kell <b>${fmtTime(new Date(Date.now() + dur * 60e3).toISOString())}</b>.</p>
+        <button class="btn primary" id="rnGo">⏺ Alusta salvestust</button>`}
+      <button class="btn ghost" id="rnClose">Sulge</button>`;
+    p.querySelectorAll("[data-dur]").forEach((b) => b.onclick = () => { dur = +b.dataset.dur; store.set("recNowDur", dur); draw(); });
+    $("#rnClose").onclick = close;
+    $("#rnGo") && ($("#rnGo").onclick = async () => {
+      const start = new Date(), end = new Date(start.getTime() + dur * 60e3);
+      const label = start.toLocaleString("et-EE", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      config.episodes.push({
+        id: `now:${st.id}:${start.getTime()}`, station: st.id, start: start.toISOString(), end: end.toISOString(),
+        title: `${st.name} otse ${label}`, rerun: false, description: `Otse-eetri salvestus (${dur} min)`,
+        show: { id: `now:${st.id}`, name: `${st.name} (otse)`, description: "", thumbnail: null },
+      });
+      await saveConfig(); close(); toast(`Salvestan ${st.name} – ${dur} min`);
+    });
+    $("#rnStop") && ($("#rnStop").onclick = async () => {
+      if (!confirm("Lõpetada salvestus kohe? Seni salvestatu jääb alles.")) return;
+      config.episodes = config.episodes.filter((e) => e.id !== cur.id);
+      await saveConfig(); close(); toast("Salvestus lõpetatakse – fail ilmub peagi „Salvestustesse“");
+    });
+  };
+  const close = () => { $("#sheet").classList.remove("open"); render(); };
+  $("#sheet").onclick = (e) => { if (e.target.id === "sheet") close(); };
+  draw();
+  $("#sheet").classList.add("open");
+}
 
 // --- salvestused ---
 function renderRec(main) {

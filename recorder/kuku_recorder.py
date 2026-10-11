@@ -275,6 +275,7 @@ class Recorder:
         self.update = None        # {"latest", "date", "notes"} kui uuem versioon on saadaval
         self.update_at = None
         self.salvage_lock = threading.Lock()
+        self.cancel = set()  # käimasolevad salvestused, mis kasutaja lõpetas („Salvesta kohe“ → „Lõpeta kohe“)
 
     # --- salvestuskiht (R2 või kohalik kaust) ----------------------------
     def get_json(self, key, default):
@@ -388,11 +389,11 @@ class Recorder:
         last_live = time.time()
         try:
             self.salvage(live_base)  # sama osa eelmine katkenud katse, kui on
-            log(f"START {ep['title']} ({ep['start'][11:16]}–{ep['end'][11:16]})")
+            log(f"START {ep['title']} ({start.astimezone():%H:%M}–{end.astimezone():%H:%M})")
             n = 0
             while True:
                 remaining = (stop_at - datetime.now(timezone.utc)).total_seconds()
-                if remaining < 5:
+                if remaining < 5 or key in self.cancel:
                     break
                 part = tmp / f"part{n:03d}.mp3"
                 n += 1
@@ -416,7 +417,7 @@ class Recorder:
                 last_size, last_change = -1, time.time()
                 while proc.poll() is None:
                     time.sleep(2)
-                    if datetime.now(timezone.utc) >= stop_at:
+                    if datetime.now(timezone.utc) >= stop_at or key in self.cancel:
                         try:
                             proc.stdin.write("q")
                             proc.stdin.flush()
@@ -481,6 +482,7 @@ class Recorder:
             shutil.rmtree(tmp, ignore_errors=True)
             with self.lock:
                 self.active.pop(key, None)
+                self.cancel.discard(key)
                 self.done.add(key)
                 self.done_file.write_text(json.dumps(sorted(self.done)[-500:]), encoding="utf-8")
 
@@ -591,9 +593,11 @@ class Recorder:
             threading.Thread(target=self.cleanup, daemon=True).start()
         now = datetime.now(timezone.utc)
         upcoming = []
+        wanted_keys = set()
         for ep in (seg for e in self.wanted(config) for seg in split_hours(e)):
             start, end = parse_ts(ep["start"]), parse_ts(ep["end"])
             key = f"{ep['id']}@{ep['start']}"
+            wanted_keys.add(key)
             if end <= now or key in self.done:
                 continue
             if start - ep.get("_pre", PRE_ROLL) <= now:
@@ -604,6 +608,12 @@ class Recorder:
                 threading.Thread(target=self.record, args=(key, ep), daemon=True).start()
             else:
                 upcoming.append({"title": ep["title"], "start": ep["start"], "end": ep["end"]})
+        # „Salvesta kohe“ eemaldati konfist → lõpeta käimasolev salvestus (salvestatu laaditakse üles)
+        with self.lock:
+            for k in list(self.active):
+                if k.startswith("now:") and k not in wanted_keys and k not in self.cancel:
+                    self.cancel.add(k)
+                    log(f"LÕPETATUD kasutaja poolt: {self.active[k]['title']}")
         upcoming.sort(key=lambda x: x["start"])
         with self.lock:
             recording = list(self.active.values())

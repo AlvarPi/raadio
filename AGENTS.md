@@ -43,6 +43,7 @@ R2:                  arvuti = salvesti ──▶ Cloudflare R2 ◀── Cloudfl
 - `status.json` – salvesti olek (uuendub ~20 s järel; veebileht näitab „Salvesti vaikib“, kui üle 3 min vana).
 - `rec/<kuupäev>_<HHMM>_<jaam>_<saade>.mp3` + `.json` (metaandmed) – valmis salvestused.
 - `config.json` → `feed_token` – privaatse podcasti-feedi võti: `/feed/<võti>/koik.xml`, `/feed/<võti>/<saate-slug>.xml`, helifailid `/feed/<võti>/audio/rec/…`. Võti asendab parooli ainult nende aadresside jaoks (`web/functions/feed/`, `recorder/webserver.py`). Soovita AntennaPodi / Apple Podcastsi; mitte serveripõhiseid rakendusi (Pocket Casts, Overcast), sest need lekitaksid võtme ja ei ulatu kohtvõrku.
+- „Salvesta kohe“ = `config.episodes` kirje id-ga `now:<jaam>:<ms>` (saade `now:<jaam>`, nt „Vikerraadio (otse)“); kirje eemaldamine lõpetab käimasoleva salvestuse (`Recorder.cancel`), salvestatu laaditakse üles.
 - `live/…` – pooleli salvestus (uueneb iga 2 min, et seda saaks kuulata); kokkujooksmisel päästetakse sildiga „katkestatud“.
 
 ### Käitumine

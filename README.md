@@ -16,6 +16,7 @@ Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tal
 - **Säilitus saadete kaupa:** hoia alles N viimast saatepäeva (vana kustub, kui uus on valmis) või vaikimisi 14 päeva
 - **Pleier:** jätkab sealt, kus pooleli jäi; 15 s / 30 s kerimine, kiirus 1–2×, lukustuskuva juhtnupud, klaviatuuri otseteed
 - **Otse-eeter:** ▶ Otse kuulab valitud jaama kohe
+- **Salvesta kohe:** ⏺ Salvesta paneb valitud jaama kohe salvestama 30–180 minutiks (pikem salvestus jaguneb täistundide kaupa); „Lõpeta kohe“ peatab ja salvestatu jääb alles
 - **Telefoni laadimine** kuulamiseks ilma võrguta või MP3 failina
 - Katkenud salvestus päästetakse sildiga „katkestatud“
 
