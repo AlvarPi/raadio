@@ -74,8 +74,16 @@ cat > "$PLIST" <<PLIST
 </dict>
 </plist>
 PLIST
+# bootout on asünkroonne: oota, kuni vana teenus on päriselt kinni, siis käivita (vajadusel uuesti proovides)
 launchctl bootout gui/$(id -u)/$LABEL 2>/dev/null || true
-launchctl bootstrap gui/$(id -u) "$PLIST"
+for i in {1..20}; do launchctl print gui/$(id -u)/$LABEL >/dev/null 2>&1 || break; sleep 0.5; done
+ok=""
+for i in {1..5}; do
+  if launchctl bootstrap gui/$(id -u) "$PLIST" 2>/dev/null; then ok=1; break; fi
+  launchctl print gui/$(id -u)/$LABEL >/dev/null 2>&1 && { ok=1; break; }   # juba käib
+  sleep 2
+done
+[ -n "$ok" ] || { echo "Taustateenust ei õnnestunud käivitada. Proovi: launchctl bootstrap gui/$(id -u) $PLIST"; exit 1; }
 
 chmod +x "$DIR/raadio" "$DIR/kuku"
 if ! grep -q "alias raadio=" ~/.zshrc 2>/dev/null; then

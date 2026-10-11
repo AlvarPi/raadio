@@ -82,7 +82,10 @@ def start():
         print("juba töötab")
         return show_access()
     if MAC:
-        sh(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(mac_plist())])
+        for _ in range(5):
+            if sh(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(mac_plist())]).returncode == 0 or running():
+                break
+            time.sleep(2)
     elif WIN:
         ps(f"Start-ScheduledTask -TaskName '{WIN_TASK}'")
     time.sleep(2)
@@ -102,6 +105,10 @@ def stop(ask=True):
         return print("juba peatatud")
     if MAC:
         sh(["launchctl", "bootout", f"gui/{os.getuid()}/{mac_label()}"])
+        for _ in range(20):  # bootout on asünkroonne – oota, kuni teenus on päriselt kinni
+            if not running():
+                break
+            time.sleep(0.5)
     elif WIN:
         ps(f"Stop-ScheduledTask -TaskName '{WIN_TASK}'")
         kill_windows_ffmpeg()
