@@ -12,8 +12,12 @@ const LABEL = {
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const k = url.searchParams.get("k") || "";
-  const authed = env.STATS_TOKEN && k.length === env.STATS_TOKEN.length &&
-    crypto.subtle.timingSafeEqual(new TextEncoder().encode(k), new TextEncoder().encode(env.STATS_TOKEN));
+  let authed = false;
+  if (env.STATS_TOKEN && k) {
+    const enc = new TextEncoder();
+    const [a, b] = await Promise.all([k, env.STATS_TOKEN].map((s) => crypto.subtle.digest("SHA-256", enc.encode(s))));
+    authed = crypto.subtle.timingSafeEqual(a, b);
+  }
   const isPublic = env.STATS_PUBLIC === "1";
   if (!authed && !isPublic) return new Response("not found", { status: 404 });
   if (!env.STATS) return new Response("STATS (D1) pole seotud", { status: 503 });

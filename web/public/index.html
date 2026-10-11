@@ -265,7 +265,15 @@ async function api(path, opts) {
   return r.status === 204 ? null : r.json();
 }
 async function saveConfig() {
-  config = await api("/api/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(config) });
+  const r = await fetch("/api/config", { method: "PUT", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...config, base_updated: config.updated }) });
+  if (r.status === 409) {  // teises seadmes muudeti vahepeal
+    config = { shows: [], episodes: [], timers: [], ...(await r.json()).config };
+    render(); toast("Valikuid muudeti vahepeal teises seadmes – laadisin värske seisu, proovi uuesti");
+    throw new Error("config conflict");
+  }
+  if (!r.ok) { toast("Salvestamine ebaõnnestus"); throw new Error("config " + r.status); }
+  config = await r.json();
   render();
 }
 const showMarked = (id) => config.shows.find((s) => s.id === id);
@@ -651,6 +659,7 @@ function renderTimers(main) {
     const name = $("#tName").value.trim() || stationName($("#tSt").value);
     if (!stationById($("#tSt").value)) return toast("Vali jaam");
     if (!days.length || !$("#tStart").value || !$("#tEnd").value) return toast("Vali päevad ja kellaajad");
+    if ($("#tStart").value === $("#tEnd").value) return toast("Algus ja lõpp ei saa olla samad");
     config.timers.push({ id: "timer:" + Math.random().toString(36).slice(2, 10), station: $("#tSt").value, name, days,
       start: $("#tStart").value, end: $("#tEnd").value, keep: null, enabled: true });
     await saveConfig(); toast("Taimer lisatud");

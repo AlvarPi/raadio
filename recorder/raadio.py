@@ -156,7 +156,7 @@ def url():
 
 
 def fmt_time(iso):
-    return datetime.fromisoformat(iso).astimezone().strftime("%d.%m %H:%M")
+    return rec.parse_ts(iso).astimezone().strftime("%d.%m %H:%M")
 
 
 def status():

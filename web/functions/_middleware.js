@@ -18,7 +18,8 @@ export async function onRequest({ request, env, next }) {
   const header = request.headers.get("authorization") || "";
   if (header.startsWith("Basic ")) {
     let decoded = "";
-    try { decoded = atob(header.slice(6)); } catch {}
+    // atob annab baitide stringi – dekodeeri UTF-8-na, muidu täpitähtedega parool ei klapi kunagi
+    try { decoded = new TextDecoder().decode(Uint8Array.from(atob(header.slice(6)), (c) => c.charCodeAt(0))); } catch {}
     const i = decoded.indexOf(":");
     if (i > 0 && (await same(decoded.slice(0, i), env.AUTH_USER)) && (await same(decoded.slice(i + 1), env.AUTH_PASS))) {
       return next();

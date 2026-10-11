@@ -24,7 +24,10 @@ TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=u
 
 
 def parse_ts(s):
-    return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    """ISO aeg. Python <3.11 ei oska „Z“-i ega 3-kohalist murdosa (brauseri toISOString) – ühtlusta."""
+    s = re.sub(r"Z$", "+00:00", str(s).strip())
+    s = re.sub(r"\.(\d+)", lambda m: "." + (m[1] + "000000")[:6], s, count=1)
+    return datetime.fromisoformat(s)
 
 
 def tallinn_day(iso):
@@ -159,7 +162,7 @@ def make_handler(store, auth):
 
         # --- abi ---
         def send_json(self, data, status=200):
-            body = json.dumps(data, ensure_ascii=False).encode()
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Cache-Control", "no-store")
@@ -183,8 +186,10 @@ def make_handler(store, auth):
             h = self.headers.get("Authorization", "")
             if h.startswith("Basic "):
                 try:
-                    user, _, pw = base64.b64decode(h[6:]).decode().partition(":")
-                    return hmac.compare_digest(user, auth[0]) & hmac.compare_digest(pw, auth[1])
+                    user, _, pw = base64.b64decode(h[6:]).decode("utf-8").partition(":")
+                    # baitidena – str-võrdlus viskab täpitähtede (nt „õ“) korral vea
+                    return (hmac.compare_digest(user.encode(), auth[0].encode())
+                            & hmac.compare_digest(pw.encode(), auth[1].encode()))
                 except Exception:
                     return False
             return False
@@ -209,7 +214,14 @@ def make_handler(store, auth):
                         return self.send_json({"shows": [], "episodes": [], "timers": [], **store.get_json("config.json", {})})
                     if method == "PUT":
                         n = int(self.headers.get("Content-Length") or 0)
-                        cfg = normalize_config(json.loads(self.rfile.read(n) or b"{}"))
+                        if n > 1_000_000:
+                            return self.send_text("liiga suur", 413)
+                        body = json.loads(self.rfile.read(n) or b"{}")
+                        stored = store.get_json("config.json", {}) or {}
+                        # teine seade muutis vahepeal → ära kirjuta üle (veebileht laeb värske seisu)
+                        if body.get("base_updated") and stored.get("updated") and body["base_updated"] != stored["updated"]:
+                            return self.send_json({"conflict": True, "config": {"shows": [], "episodes": [], "timers": [], **stored}}, 409)
+                        cfg = normalize_config(body)
                         store.put_json("config.json", cfg)
                         return self.send_json(cfg)
                 if p == "/api/status" and method == "GET":

@@ -98,7 +98,23 @@ def slugify(s):
 
 
 def parse_ts(s):
+    """ISO aeg. Python <3.11 ei oska „Z“-i ega 3-kohalist murdosa (brauseri toISOString) – ühtlusta."""
+    s = re.sub(r"Z$", "+00:00", str(s).strip())
+    s = re.sub(r"\.(\d+)", lambda m: "." + (m[1] + "000000")[:6], s, count=1)
     return datetime.fromisoformat(s)
+
+
+def prune_done(keys, days=3):
+    """done-võtmed „<id>@<algus>“ – hoia alles ainult viimaste päevade omad."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    out = set()
+    for k in keys:
+        try:
+            if parse_ts(k.rsplit("@", 1)[1]) > cutoff:
+                out.add(k)
+        except Exception:
+            pass
+    return out
 
 
 def norm_id(x):
@@ -162,6 +178,8 @@ def expand_timers(timers, now):
             continue
         sh, sm = map(int, t["start"].split(":"))
         eh, em = map(int, t["end"].split(":"))
+        if (sh, sm) == (eh, em):
+            continue  # algus = lõpp → ei salvesta (muidu tuleks 24 h)
         for off in range(-1, 3):
             day = today + timedelta(days=off)
             if day.weekday() not in t.get("days", []):
@@ -295,6 +313,7 @@ class Recorder:
         self.update = None        # {"latest", "date", "notes"} kui uuem versioon on saadaval
         self.update_at = None
         self.salvage_lock = threading.Lock()
+        self.warned = set()  # juba logitud vigased kirjed (mitte iga 20 s järel uuesti)
         self.cancel = set()  # käimasolevad salvestused, mis kasutaja lõpetas („Salvesta kohe“ → „Lõpeta kohe“)
 
     # --- salvestuskiht (R2 või kohalik kaust) ----------------------------
@@ -504,7 +523,8 @@ class Recorder:
                 self.active.pop(key, None)
                 self.cancel.discard(key)
                 self.done.add(key)
-                self.done_file.write_text(json.dumps(sorted(self.done)[-500:]), encoding="utf-8")
+                self.done = prune_done(self.done)
+                self.done_file.write_text(json.dumps(sorted(self.done)), encoding="utf-8")
 
     @staticmethod
     def probe_duration(path):
@@ -589,6 +609,11 @@ class Recorder:
         finally:
             self.cleanup_lock.release()
 
+    def warn_once(self, key, msg):
+        if key not in self.warned:
+            self.warned.add(key)
+            log(msg)
+
     def check_update(self):
         """Kord 12 h jooksul: kas raadio.mastering.ee-l on uuem versioon? (UPDATE_CHECK=0 lülitab välja)"""
         if not self.version or self.env.get("UPDATE_CHECK") == "0":
@@ -614,20 +639,30 @@ class Recorder:
         now = datetime.now(timezone.utc)
         upcoming = []
         wanted_keys = set()
-        for ep in (seg for e in self.wanted(config) for seg in split_hours(e)):
-            start, end = parse_ts(ep["start"]), parse_ts(ep["end"])
-            key = f"{ep['id']}@{ep['start']}"
-            wanted_keys.add(key)
-            if end <= now or key in self.done:
+        for e in self.wanted(config):
+            try:  # üks vigane kirje ei tohi kõiki salvestusi peatada
+                segs = split_hours(e)
+            except Exception as ex:
+                self.warn_once(e.get("id"), f"vigane kirje {e.get('id')}: {ex}")
                 continue
-            if start - ep.get("_pre", PRE_ROLL) <= now:
-                with self.lock:
-                    if key in self.active:
-                        continue
-                    self.active[key] = {"title": ep["title"], "start": ep["start"], "end": ep["end"], "bytes": 0}
-                threading.Thread(target=self.record, args=(key, ep), daemon=True).start()
-            else:
-                upcoming.append({"title": ep["title"], "start": ep["start"], "end": ep["end"]})
+            for ep in segs:
+                try:
+                    start, end = parse_ts(ep["start"]), parse_ts(ep["end"])
+                except Exception as ex:
+                    self.warn_once(ep.get("id"), f"vigane aeg {ep.get('id')}: {ex}")
+                    continue
+                key = f"{ep['id']}@{ep['start']}"
+                wanted_keys.add(key)
+                if end <= now or key in self.done:
+                    continue
+                if start - ep.get("_pre", PRE_ROLL) <= now:
+                    with self.lock:
+                        if key in self.active:
+                            continue
+                        self.active[key] = {"title": ep["title"], "start": ep["start"], "end": ep["end"], "bytes": 0}
+                    threading.Thread(target=self.record, args=(key, ep), daemon=True).start()
+                else:
+                    upcoming.append({"title": ep["title"], "start": ep["start"], "end": ep["end"]})
         # „Salvesta kohe“ eemaldati konfist → lõpeta käimasolev salvestus (salvestatu laaditakse üles)
         with self.lock:
             for k in list(self.active):

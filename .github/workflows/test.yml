@@ -6,6 +6,17 @@ on:
   workflow_dispatch:
 
 jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "${{ matrix.python }}" }
+      - run: pip install -q -r recorder/requirements.txt && python recorder/tests/test_core.py
+
   windows:
     runs-on: windows-latest
     timeout-minutes: 20

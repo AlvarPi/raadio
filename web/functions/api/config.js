@@ -18,6 +18,11 @@ export async function onRequestGet({ env }) {
 export async function onRequestPut({ env, request }) {
   const body = await request.json();
   const now = Date.now();
+  // teine seade muutis vahepeal → ära kirjuta üle (veebileht laeb värske seisu)
+  const stored = (await (await env.KUKU.get("config.json"))?.json()) || {};
+  if (body.base_updated && stored.updated && body.base_updated !== stored.updated) {
+    return Response.json({ conflict: true, config: { shows: [], episodes: [], timers: [], ...stored } }, { status: 409 });
+  }
   const config = {
     shows: (body.shows || []).map((s) => ({
       id: normId(s.id), name: str(s.name), station: str(s.station || normId(s.id).split(":")[0], 40),
