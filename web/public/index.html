@@ -466,9 +466,18 @@ function openRecNow(sid) {
     $("#rnGo") && ($("#rnGo").onclick = async () => {
       const start = new Date(), end = new Date(start.getTime() + dur * 60e3);
       const label = start.toLocaleString("et-EE", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      // kavast: saated, mis jäävad salvestusaja sisse (nimi failile ja tunniosadele)
+      const sched = schedules[st.id] || (await loadStation(st.id)) || [];
+      // vähemalt 5 min kattumist (nagu salvestis), et lõpu-/algusvaru naabersaadet ei tooks
+      const lineup = sched.filter((e) => Math.min(Date.parse(e.end), end.getTime()) - Math.max(Date.parse(e.start), start.getTime()) >= 5 * 60e3)
+        .map((e) => ({ start: e.start, end: e.end, name: e.show.name }));
+      const names = [...new Set(lineup.map((x) => x.name))];
+      const prefix = `${st.name} otse`;
       config.episodes.push({
         id: `now:${st.id}:${start.getTime()}`, station: st.id, start: start.toISOString(), end: end.toISOString(),
-        title: `${st.name} otse ${label}`, rerun: false, description: `Otse-eetri salvestus (${dur} min)`,
+        title: names.length ? `${prefix}: ${names.slice(0, 3).join(" / ")} · ${label}` : `${prefix} ${label}`,
+        title_prefix: prefix, lineup, rerun: false,
+        description: `Otse-eetri salvestus (${dur} min)` + (lineup.length ? ". Eetris: " + lineup.map((x) => `${fmtTime(x.start)} ${x.name}`).join("; ") : ""),
         show: { id: `now:${st.id}`, name: `${st.name} (otse)`, description: "", thumbnail: null },
       });
       await saveConfig(); close(); toast(`Salvestan ${st.name} – ${dur} min`);

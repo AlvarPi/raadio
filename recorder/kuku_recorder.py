@@ -185,6 +185,26 @@ def hhmm(t):
     return f"{t:%H}" if t.minute == 0 else f"{t:%H:%M}"
 
 
+def lineup_names(ep, a, b, min_overlap=timedelta(minutes=5)):
+    """„Salvesta kohe“: saated, mis olid eetris ajavahemikus a–b (lineup tuleb brauserist kavast)."""
+    names = []
+    for x in ep.get("lineup") or []:
+        try:
+            s, e = parse_ts(x["start"]), parse_ts(x["end"])
+        except Exception:
+            continue
+        if min(e, b) - max(s, a) >= min_overlap and x.get("name") and x["name"] not in names:
+            names.append(x["name"])
+    return names
+
+
+def part_title(ep, a, b):
+    names = lineup_names(ep, a, b)
+    if ep.get("title_prefix") and names:
+        return f"{ep['title_prefix']}: {' / '.join(names[:3])} · {hhmm(a)}–{hhmm(b)}"
+    return f"{ep['title']} · {hhmm(a)}–{hhmm(b)}"
+
+
 def split_hours(ep):
     """Üle tunni pikk saade -> täistundide kaupa osad (06–07, 07–08, ...)."""
     start, end = parse_ts(ep["start"]), parse_ts(ep["end"])
@@ -208,7 +228,7 @@ def split_hours(ep):
         seg = dict(ep)
         seg.update({
             "start": a.isoformat(), "end": b.isoformat(),
-            "title": f"{ep['title']} · {hhmm(a)}–{hhmm(b)}",
+            "title": part_title(ep, a, b),
             "part": i + 1, "parts": n,
             "episode_start": ep["start"], "episode_end": ep["end"],
             "_pre": PRE_ROLL if i == 0 else OVERLAP,

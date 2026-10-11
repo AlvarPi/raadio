@@ -65,6 +65,9 @@ def normalize_config(body):
                          "description": _s(sh.get("description")),
                          "thumbnail": _s(sh["thumbnail"], 500) if sh.get("thumbnail") else None}} if sh else {}),
             "auto": bool(e.get("auto")),
+            **({"title_prefix": _s(e["title_prefix"], 120)} if e.get("title_prefix") else {}),
+            **({"lineup": [{"start": _s(x.get("start"), 40), "end": _s(x.get("end"), 40), "name": _s(x.get("name"), 120)}
+                           for x in e["lineup"][:24] if isinstance(x, dict)]} if isinstance(e.get("lineup"), list) else {}),
         })
     timers = []
     for t in body.get("timers") or []:

@@ -33,6 +33,8 @@ export async function onRequestPut({ env, request }) {
         show: e.show ? { id: normId(e.show.id), name: str(e.show.name), description: str(e.show.description, 300),
           thumbnail: e.show.thumbnail ? str(e.show.thumbnail, 500) : null } : undefined,
         auto: !!e.auto,
+        ...(e.title_prefix ? { title_prefix: str(e.title_prefix, 120) } : {}),
+        ...(Array.isArray(e.lineup) ? { lineup: e.lineup.slice(0, 24).map((x) => ({ start: str(x.start, 40), end: str(x.end, 40), name: str(x.name, 120) })) } : {}),
       })),
     timers: (body.timers || [])
       .filter((t) => /^timer:[\w-]{1,40}$/.test(t.id) && HHMM.test(t.start) && HHMM.test(t.end))
