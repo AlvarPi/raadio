@@ -40,7 +40,8 @@ main() {
   rsync -a --delete --exclude ".venv" --exclude "node_modules" "$tmp/src/" "$APP/"
 
   # installer küsib režiimi ja parooli – klaviatuurilt, mitte torust
-  if [ -z "$RAADIO_NONINTERACTIVE" ] && [ -r /dev/tty ]; then
+  # NB: [ -r /dev/tty ] võib olla tõene ka siis, kui terminali pole – proovi päriselt avada
+  if [ -z "$RAADIO_NONINTERACTIVE" ] && { : </dev/tty; } 2>/dev/null; then
     zsh "$APP/recorder/install.sh" </dev/tty
   else
     zsh "$APP/recorder/install.sh"

@@ -3,7 +3,7 @@
 # Mitteinteraktiivselt (nt CI): RAADIO_MODE=local|r2 RAADIO_PASS=... ./install.sh
 set -e
 DIR="${0:A:h}"
-TTY=/dev/tty; [ -r /dev/tty ] || TTY=/dev/stdin
+TTY=/dev/tty; { : </dev/tty; } 2>/dev/null || TTY=/dev/stdin
 ask() { local __v; if [ -n "$RAADIO_NONINTERACTIVE" ]; then __v="$3"; else read "__v?$2" < $TTY || __v="$3"; fi; eval "$1=\"\${__v:-$3}\""; }
 
 # olemasolev (vana nimega) paigaldus jääb samaks
