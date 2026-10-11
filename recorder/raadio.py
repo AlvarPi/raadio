@@ -213,11 +213,11 @@ def update():
     print(f"Praegune versioon: {rec.local_version()}")
     env_ = dict(os.environ, RAADIO_NONINTERACTIVE="1", RAADIO_DIR=str(rec.APP_ROOT))
     if MAC:
-        os.execvpe("zsh", ["zsh", "-c", "curl -fsSL https://raadio.mastering.ee/install | zsh"], env_)
+        os.execvpe("zsh", ["zsh", "-c", "curl -fsSL 'https://raadio.mastering.ee/install?update=1' | zsh"], env_)
     elif WIN:
         # eraldi aknas ja viivitusega: see protsess (venv-i python) peab enne lõppema, muidu on failid lukus
         cmd = ("Start-Sleep 2; $env:RAADIO_NONINTERACTIVE='1'; "
-               "irm https://raadio.mastering.ee/install.ps1 | iex; Read-Host 'Valmis – vajuta Enter'")
+               "irm 'https://raadio.mastering.ee/install.ps1?update=1' | iex; Read-Host 'Valmis – vajuta Enter'")
         subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", cmd],
                          creationflags=0x00000010, env=env_)  # CREATE_NEW_CONSOLE
         print("Uuendus käivitus eraldi aknas.")
