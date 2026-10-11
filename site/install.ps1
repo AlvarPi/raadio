@@ -41,7 +41,10 @@ try {
   } else {
     $zip = Join-Path $tmp "src.zip"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest "https://github.com/$Repo/archive/refs/heads/$Ref.zip" -OutFile $zip -UseBasicParsing
+    for ($i = 1; $i -le 4; $i++) {
+      try { Invoke-WebRequest "https://github.com/$Repo/archive/refs/heads/$Ref.zip" -OutFile $zip -UseBasicParsing; break }
+      catch { if ($i -eq 4) { throw "Allalaadimine GitHubist ebaonnestus - proovi mone minuti parast uuesti." }; Start-Sleep 3 }
+    }
     Expand-Archive $zip -DestinationPath $tmp
     Move-Item (Get-ChildItem $tmp -Directory | Where-Object Name -like "*-$Ref" | Select-Object -First 1).FullName (Join-Path $tmp "src")
   }

@@ -33,7 +33,10 @@ main() {
   if [ -n "$RAADIO_SOURCE" ]; then
     mkdir -p "$tmp/src" && cp -R "$RAADIO_SOURCE/." "$tmp/src/"
   else
-    curl -fsSL "https://github.com/$REPO/archive/refs/heads/$REF.tar.gz" | tar xz -C "$tmp"
+    if ! curl -fsSL --retry 4 --retry-delay 3 --retry-all-errors "https://github.com/$REPO/archive/refs/heads/$REF.tar.gz" -o "$tmp/src.tgz" \
+       || ! tar xzf "$tmp/src.tgz" -C "$tmp"; then
+      echo "Allalaadimine GitHubist ebaõnnestus – proovi mõne minuti pärast uuesti."; exit 1
+    fi
     mv "$tmp"/*-"$REF" "$tmp/src"
   fi
   mkdir -p "$APP"
