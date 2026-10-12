@@ -6,7 +6,7 @@ See fail on mõeldud AI-agendile (Claude Code, Cursor, Codex jt), kes aitab kasu
 
 Isiklik ajanihke-salvesti Eesti raadiojaamade **vabalt edastatavale otse-eetrile**: kasutaja valib veebilehel saated või seab taimeri, kasutaja enda arvuti (Mac või Windows) salvestab need ffmpeg-iga mono-MP3-na ja kasutaja kuulab neid hiljem telefonist. Sarnane raadiost lindistamisele.
 
-Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tallinn (`web/stations.json`).
+Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tallinn, Sky Plus, Retro FM, Rock FM (`web/stations.json`).
 
 ## Piirid – järgi alati
 
@@ -34,12 +34,12 @@ R2:                  arvuti = salvesti ──▶ Cloudflare R2 ◀── Cloudfl
 | `site/install`, `site/install.ps1` | ühe käsu alglaadijad (laevad repo alla ja käivitavad paigalduse) |
 | `web/functions/` | Cloudflare Pages Functions (R2 režiim): `api/schedule`, `api/config`, `api/status`, `api/recordings`, `audio/*`, `_middleware.js` (parool) |
 | `web/public/index.html` | kogu kasutajaliides (üks fail, vanilla JS), `sw.js` = offline/telefoni laadimine |
-| `web/stations.json` | jaamad: id, nimi, voo URL, kava tüüp (`kuku` = serveri pool, `err` = brauseris) |
+| `web/stations.json` | jaamad: id, nimi, voo URL, kava tüüp (`kuku`, `sky` = salvesti laeb; `err` = brauseris) |
 
 ### Andmed salvestuses (kaust või R2 bucket)
 
 - `config.json` – kasutaja valikud (veebileht kirjutab, salvesti loeb): `shows` (terve saade, `keep` = mitu viimast saatepäeva alles), `episodes` (konkreetsed ajad; `auto: true` = brauser koostas ERR-i saate tellimusest), `timers` (jaam + nädalapäevad 0=E … 6=P + `HH:MM`).
-- `schedule.json` – serveripoolne kava (praegu Kuku).
+- `schedule.json` – serveripoolne kava (Kuku ja Sky Media jaamad).
 - `status.json` – salvesti olek (uuendub ~20 s järel; veebileht näitab „Salvesti vaikib“, kui üle 3 min vana).
 - `rec/<kuupäev>_<HHMM>_<jaam>_<saade>.mp3` + `.json` (metaandmed) – valmis salvestused.
 - `config.json` → `feed_token` – privaatse podcasti-feedi võti: `/feed/<võti>/koik.xml`, `/feed/<võti>/<saate-slug>.xml`, helifailid `/feed/<võti>/audio/rec/…`. Võti asendab parooli ainult nende aadresside jaoks (`web/functions/feed/`, `recorder/webserver.py`). Soovita AntennaPodi / Apple Podcastsi; mitte serveripõhiseid rakendusi (Pocket Casts, Overcast), sest need lekitaksid võtme ja ei ulatu kohtvõrku.
@@ -86,7 +86,7 @@ Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadi
 
 ## Levinud ülesanded
 
-- **Uus jaam:** lisa kirje `web/stations.json`-i (`stream` = otse MP3 või HLS `.m3u8`; `schedule.type`: `err` kui ERR-i kanal, muidu jäta kava ära ja kasuta taimereid). Kontrolli voogu: `ffmpeg -t 5 -i <url> -f null -`. Ära lisa jaamu, mille voog on kaitstud (tokenid, DRM, sisselogimine).
+- **Uus jaam:** lisa kirje `web/stations.json`-i (`stream` = otse MP3 või HLS `.m3u8`; `schedule.type`: `err` + `channel` kui ERR-i kanal, `sky` + `channel` = Sky Media jaama ID (`https://sky.ee/api/radio-stations/all`), muidu `{"type": "none"}` ja kasuta taimereid). Kontrolli voogu: `ffmpeg -t 5 -i <url> -f null -`. Ära lisa jaamu, mille voog on kaitstud (tokenid, DRM, sisselogimine).
 - **Ununenud parool / kasutajanimi:** `raadio parool` (kasutaja sisestab ise – ära küsi parooli chatti).
 - **Teine salvestuskaust / port:** `config.env` (`LOCAL_DIR`, `WEB_PORT`) → `raadio restart`.
 - **Kodust väljas ligipääs (kohalik režiim):** Tailscale mõlemasse seadmesse, arvutis `tailscale serve --bg 8788` → `https://<arvuti>.<tailnet>.ts.net` (https-iga töötab ka telefoni laadimine).

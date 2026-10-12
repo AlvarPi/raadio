@@ -42,6 +42,26 @@ def test_normalize_config_drops_bad_timers():
     assert [t["id"] for t in cfg["timers"]] == ["timer:b"] and cfg["timers"][0]["days"] == [0]
 
 
+def test_fetch_sky_weekly_template():
+    data = {"data": [
+        {"name": "Hommik", "days": [1, 2, 3, 4, 5], "start_time": "06:00", "end_time": "10:00",
+         "show": {"title": "Sky Plus Hommik", "slug": "sky-plus-hommik"}, "cover_image_url": "x.webp"},
+        {"name": "Öö", "days": [6], "start_time": "22:00", "end_time": "00:00", "show": None},
+    ]}
+    orig, k.http_json = k.http_json, lambda url: data
+    try:
+        now = datetime(2026, 10, 12, 12, tzinfo=timezone.utc)  # esmaspäev
+        eps = k.fetch_sky({"id": "skyplus", "schedule": {"type": "sky", "channel": "1"}}, now)
+    finally:
+        k.http_json = orig
+    morning = [e for e in eps if e["show"]["id"] == "skyplus:sky-plus-hommik"]
+    assert len({e["id"] for e in eps}) == len(eps)
+    assert all(k.parse_ts(e["start"]).astimezone().weekday() < 5 for e in morning)
+    night = next(e for e in eps if e["show"]["id"] == "skyplus:oo")
+    assert k.parse_ts(night["end"]) - k.parse_ts(night["start"]) == timedelta(hours=2)
+    assert night["show"]["name"] == "Öö" and morning[0]["show"]["thumbnail"] == "x.webp"
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

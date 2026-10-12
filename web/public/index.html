@@ -38,14 +38,14 @@
   .days button { flex: none; border: 1px solid var(--line); background: var(--surface); color: var(--text);
     border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
   .days button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
-  .stations { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+  .stations { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 8px; }
   .stations button { flex: none; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600;
     font-size: 14px; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
   .stations button.on { background: var(--accent-soft); color: var(--accent); }
-  .stations .golive { margin-left: auto; color: var(--accent); border: 1px solid var(--accent); }
+  .stations .acts { display: flex; gap: 6px; margin-left: auto; }
+  .stations .golive { color: var(--accent); border: 1px solid var(--accent); }
   .stations .golive.playing { background: var(--accent); color: #fff; }
   .stations .recnow { color: var(--accent); border: 1px solid var(--accent); }
-  .stations .golive + .recnow { margin-left: 0; }
   .stations .recnow.on { background: var(--accent); color: #fff; animation: pulse 1.6s infinite; }
   .durs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .durs button { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 10px; padding: 12px 0;
@@ -222,9 +222,11 @@ async function fetchErr(st) {
   return out.sort((a, b) => a.start.localeCompare(b.start));
 }
 // NB: tagastab Promise'i ainult siis, kui päriselt laeb (muidu render() -> then -> render() tsükkel)
+// brauser laeb ise ainult ERR-i kava; ülejäänu (Kuku, Sky) tuleb salvestilt schedule.json-ist
+const browserSched = (st) => st?.schedule?.type === "err";
 function loadStation(id) {
   const st = stationById(id);
-  if (!st || st.server) return Promise.resolve(schedules[id] || null);
+  if (!st || st.server || !browserSched(st)) return Promise.resolve(schedules[id] || null);
   if (schedules[id]) return Promise.resolve(schedules[id]);
   if (!loading[id]) {
     delete loadFailed[id];
@@ -237,7 +239,7 @@ function loadStation(id) {
 // ERR-i saadete tellimused -> konkreetsed episoodid config.episodes alla (auto)
 async function syncBrowserShows() {
   const now = Date.now();
-  const subs = config.shows.filter((s) => !stationById(s.station)?.server && stationById(s.station));
+  const subs = config.shows.filter((s) => browserSched(stationById(s.station)) && !stationById(s.station).server);
   const byStation = {};
   for (const s of subs) (byStation[s.station] ??= []).push(s);
   let changed = false;
@@ -318,8 +320,8 @@ function renderKava(main) {
   if (!stationById(selectedStation)) selectedStation = stations[0]?.id;
   const onairNow = current?.onair === selectedStation;
   const chips = `<div class="stations">${stations.map((s) => `<button data-st="${s.id}" class="${s.id === selectedStation ? "on" : ""}">${esc(s.short || s.name)}</button>`).join("")}
-    <button class="golive ${onairNow ? "playing" : ""}" id="goLive">${onairNow ? "❚❚ Otse" : "▶ Otse"}</button>
-    <button class="recnow ${recNowFor(selectedStation) ? "on" : ""}" id="recNow">${recNowFor(selectedStation) ? "⏺ Salvestab" : "⏺ Salvesta"}</button></div>`;
+    <span class="acts"><button class="golive ${onairNow ? "playing" : ""}" id="goLive">${onairNow ? "❚❚ Otse" : "▶ Otse"}</button>
+    <button class="recnow ${recNowFor(selectedStation) ? "on" : ""}" id="recNow">${recNowFor(selectedStation) ? "⏺ Salvestab" : "⏺ Salvesta"}</button></span></div>`;
   const schedule = schedules[selectedStation];
   if (!schedule) {
     const st = stationById(selectedStation);
@@ -329,9 +331,12 @@ function renderKava(main) {
       $("#retry").onclick = () => { delete loadFailed[selectedStation]; render(); };
       return;
     }
-    main.innerHTML = chips + `<div class="empty">${st && st.server ? "Kava pole veel salvestilt saabunud." : "Laen kava…"}</div>`;
+    main.innerHTML = chips + `<div class="empty">${st && st.server ? "Kava pole veel salvestilt saabunud."
+      : st && ["kuku", "sky"].includes(st.schedule?.type) ? "Selle jaama kava laeb salvesti – uuenda salvestit (<code>raadio update</code>).<br><small>Taimer ja ⏺ Salvesta töötavad ka praegu.</small>"
+      : st && !browserSched(st) ? "Selle jaama kava pole saadaval – kasuta taimerit või ⏺ Salvesta."
+      : "Laen kava…"}</div>`;
     bindStations(main);
-    if (st && !st.server && !loading[st.id]) {
+    if (st && !st.server && browserSched(st) && !loading[st.id]) {
       const id = st.id;
       loadStation(id).then(() => tab === "kava" && selectedStation === id && render());
     }

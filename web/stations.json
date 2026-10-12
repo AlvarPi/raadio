@@ -16,5 +16,14 @@
     "schedule": { "type": "err", "channel": "raadio4" } },
   { "id": "raadiotallinn", "name": "Raadio Tallinn", "short": "Tallinn",
     "stream": "https://icecast.err.ee/raadiotallinn.mp3",
-    "schedule": { "type": "err", "channel": "raadiotallinn" } }
+    "schedule": { "type": "err", "channel": "raadiotallinn" } },
+  { "id": "skyplus", "name": "Sky Plus", "short": "Sky+",
+    "stream": "https://stream.skymedia.ee/live/SKYPLUS_AAC",
+    "schedule": { "type": "sky", "channel": "1" } },
+  { "id": "retrofm", "name": "Retro FM", "short": "Retro",
+    "stream": "https://stream.skymedia.ee/live/RETRO_AAC",
+    "schedule": { "type": "sky", "channel": "3" } },
+  { "id": "rockfm", "name": "Rock FM", "short": "Rock",
+    "stream": "https://stream.skymedia.ee/live/rck_AAC",
+    "schedule": { "type": "sky", "channel": "8" } }
 ]

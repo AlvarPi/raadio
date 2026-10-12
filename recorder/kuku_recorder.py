@@ -30,6 +30,7 @@ from storage import make_storage
 
 STATIONS_FILE = Path(__file__).resolve().parent.parent / "web" / "stations.json"
 KUKU_SCHEDULE_URL = "https://ams.postimees.ee/api/schedule?domain=kuku.pleier.ee&start={start}&end={end}"
+SKY_SCHEDULE_URL = "https://sky.ee/api/radio-stations/{id}/schedule"
 ERR_SCHEDULE_URL = "https://vikerraadio.err.ee/api/radioSchedule/getTimelineSchedule2?day={d}&month={m}&year={y}&channel={channel}&portal=radio"
 SCHEDULE_DAYS = 7
 
@@ -163,10 +164,52 @@ def fetch_kuku(st, now):
     return out
 
 
+def tallinn_tz():
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo("Europe/Tallinn")
+    except Exception:
+        return None  # nt Windows ilma tzdata-ta -> arvuti kohalik aeg
+
+
+def fetch_sky(st, now):
+    """Sky Media jaamad (Sky Plus, Retro FM, …): nädala põhikava -> konkreetsed ajad."""
+    data = http_json(SKY_SCHEDULE_URL.format(id=st["schedule"]["channel"]))["data"]
+    tz = tallinn_tz()
+    today = (now.astimezone(tz) if tz else now.astimezone()).date()
+    out = []
+    for slot in data:
+        sh, sm = map(int, slot["start_time"].split(":"))
+        eh, em = map(int, slot["end_time"].split(":"))
+        show = slot.get("show") or {}
+        name = show.get("title") or slot["name"]
+        show_id = f"{st['id']}:{show.get('slug') or slugify(slot['name'])}"
+        days = {7 if d == 0 else d for d in slot.get("days") or []}  # 1=E … 7=P
+        for off in range(-1, SCHEDULE_DAYS + 1):
+            day = today + timedelta(days=off)
+            if day.isoweekday() not in days:
+                continue
+            start = datetime(day.year, day.month, day.day, sh, sm, tzinfo=tz)
+            end = datetime(day.year, day.month, day.day, eh, em, tzinfo=tz)
+            if not tz:
+                start, end = start.astimezone(), end.astimezone()
+            if end <= start:
+                end += timedelta(days=1)  # 10:00–00:00
+            out.append({
+                "id": f"{show_id}@{day.isoformat()}T{sh:02d}{sm:02d}", "station": st["id"],
+                "start": start.isoformat(), "end": end.isoformat(),
+                "title": f"{name} {day:%d.%m.%Y}", "rerun": False,
+                "description": strip_html(slot.get("description")),
+                "show": {"id": show_id, "name": name, "description": "",
+                         "thumbnail": slot.get("cover_image_url") or show.get("cover_url")},
+            })
+    return out
+
+
 # Serveripoolne kava ainult jaamadele, kus see on lubatud. ERR-i kava on Cloudflare'i
 # robotikaitse taga – selle laeb veebiliides kasutaja brauseris ja kirjutab valitud
 # saated konkreetsete aegadena config.json-i (episodes).
-FETCHERS = {"kuku": fetch_kuku}
+FETCHERS = {"kuku": fetch_kuku, "sky": fetch_sky}
 WEEKDAYS = "ETKNRLP"
 
 
