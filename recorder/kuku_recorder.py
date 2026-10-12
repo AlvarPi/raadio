@@ -50,7 +50,8 @@ def local_version():
         return VERSION_FILE.read_text(encoding="utf-8").strip() or None
     except FileNotFoundError:
         return None  # arenduskoopia (git) – uuendusi ei kontrollita
-BITRATE = "64k"
+BITRATE = "64k"          # mono
+BITRATE_STEREO = "128k"  # stereo (config.json → audio.stereo)
 KEEP_DAYS = 14                     # vaikimisi säilitus (kui saatel pole "keep")
 CLEANUP_EVERY = timedelta(minutes=30)
 LIVE_EVERY = 120                   # pooleli faili üleslaadimise intervall (s)
@@ -421,10 +422,14 @@ class Recorder:
             size = live.stat().st_size
             self.store.put_file(live, live_base + ".mp3")
             self.put_json(live_base + ".json", make_meta(
-                live_base, int(size * 8 / 64000), size,
+                live_base, int(size * 8 / bps), size,
                 live=True, updated=datetime.now(timezone.utc).isoformat(),
             ))
 
+        # heli: mono (vaikimisi) või stereo – loetakse salvestuse alguses
+        stereo = bool((self.config.get("audio") or {}).get("stereo"))
+        bitrate = BITRATE_STEREO if stereo else BITRATE
+        bps = int(bitrate.rstrip("k")) * 1000
         last_live = time.time()
         try:
             self.salvage(live_base)  # sama osa eelmine katkenud katse, kui on
@@ -443,10 +448,10 @@ class Recorder:
                     "-rw_timeout", "20000000",
                     *(["-live_start_index", "-1"] if ".m3u8" in station["stream"] else []),
                     "-i", station["stream"],
-                    # Kuku voog on sisuliselt mono (L=R) ja juba 0 dBFS peal; -ac 1 liidaks
+                    # mono: Kuku voog on sisuliselt mono (L=R) ja juba 0 dBFS peal; -ac 1 liidaks
                     # kanalid +3 dB-ga ja klipiks. Keskmistame ja jätame ~1 dB varu MP3 jaoks.
-                    "-vn", "-af", "pan=mono|c0=0.45*c0+0.45*c1",
-                    "-c:a", "libmp3lame", "-b:a", BITRATE,
+                    "-vn", *(["-ac", "2"] if stereo else ["-af", "pan=mono|c0=0.45*c0+0.45*c1"]),
+                    "-c:a", "libmp3lame", "-b:a", bitrate,
                     "-write_xing", "0",
                     str(part),
                 ]
@@ -721,6 +726,7 @@ if __name__ == "__main__":
         # kiirtest: salvesta N s (vaikimisi 60) ja lae üles
         secs = int(sys.argv[2]) if len(sys.argv) > 2 else 60
         r = Recorder()
+        r.config = r.get_json("config.json", {}) or {}  # nt heli (mono/stereo)
         now = datetime.now(timezone.utc).astimezone()
         ep = {
             "id": 0, "title": f"Test {now:%d-%m-%Y %H:%M}",

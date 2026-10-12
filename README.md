@@ -18,6 +18,7 @@ Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tal
 - **Otse-eeter:** ▶ Otse kuulab valitud jaama kohe
 - **Salvesta kohe:** ⏺ Salvesta paneb valitud jaama kohe salvestama 30–180 minutiks (pikem salvestus jaguneb täistundide kaupa); „Lõpeta kohe“ peatab ja salvestatu jääb alles
 - **Telefoni laadimine** kuulamiseks ilma võrguta või MP3 failina
+- **Heli:** mono 64 kbps (vaikimisi, jutusaated) või stereo 128 kbps (muusika) – „Minu saated“ → Salvestuse heli
 - Katkenud salvestus päästetakse sildiga „katkestatud“
 
 ## Ülesehitus

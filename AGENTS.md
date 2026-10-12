@@ -50,7 +50,7 @@ R2:                  arvuti = salvesti ──▶ Cloudflare R2 ◀── Cloudfl
 
 - Salvestus algab 1 min varem, lõpeb 2 min hiljem; üle tunni pikad saated lõigatakse täistundide kaupa (30 s kattuvusega).
 - Kava kontroll iga 20 s; koristus pärast iga salvestust ja iga 30 min (saate `keep` või vaikimisi 14 päeva).
-- Mono-liitmine `pan=mono|c0=0.45*c0+0.45*c1` (mitte `-ac 1` – see klipiks, sest vood on juba 0 dBFS).
+- Mono-liitmine `pan=mono|c0=0.45*c0+0.45*c1` (mitte `-ac 1` – see klipiks, sest vood on juba 0 dBFS). Stereo (`config.json` → `audio.stereo`, 128 kbps) kasutab `-ac 2`; seade loetakse iga salvestuse alguses.
 
 ## Paigaldus
 

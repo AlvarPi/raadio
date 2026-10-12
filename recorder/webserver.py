@@ -88,6 +88,7 @@ def normalize_config(body):
                    "reruns": bool(s.get("reruns")), "keep": _keep(s.get("keep"))} for s in body.get("shows") or []],
         "episodes": eps,
         "timers": timers,
+        "audio": {"stereo": bool((body.get("audio") or {}).get("stereo"))},
         **({"feed_token": body["feed_token"]} if re.fullmatch(r"[\w-]{20,64}", str(body.get("feed_token") or "")) else {}),
         "synced": {_s(k, 40): _s(v, 40) for k, v in (body.get("synced") or {}).items()},
         "updated": now.isoformat(),

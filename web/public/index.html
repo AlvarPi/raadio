@@ -614,8 +614,17 @@ function renderShows(main) {
       <span class="body"><div class="stn">${esc(stationName(e.station))}</div><div class="name">${esc(e.title)}</div><div class="sub">${dayLabel(dayKey(e.start))} ${fmtTime(e.start)}–${fmtTime(e.end)}</div></span>
       <button class="btn" data-rme="${e.id}">Eemalda</button></div>`).join("")}</div>`
       : '<div class="empty">Ühtegi üksikut episoodi pole valitud.</div>'}`, upcomingEps.length)}
+    ${sec("audio", "Salvestuse heli", `<div class="list">
+      ${[[false, "Mono · 64 kbps", "Vaikimisi. ~28 MB tunnis – sobib jutusaadetele."],
+         [true, "Stereo · 128 kbps", "~56 MB tunnis – muusikale (nt Klassikaraadio, Raadio 2). Kuku voog on ise mono, seal stereo midagi juurde ei anna."]]
+        .map(([v, t, d]) => `<label class="row" style="cursor:pointer"><input type="radio" name="aud" value="${v}" ${!!config.audio?.stereo === v ? "checked" : ""}>
+          <span class="body"><div class="name">${t}</div><div class="sub" style="white-space:normal">${d}</div></span></label>`).join("")}
+      </div><p class="sub" style="font-size:13px;color:var(--muted);margin:8px 0 0">Kehtib järgmistele salvestustele; olemasolevad failid jäävad samaks.</p>`, config.audio?.stereo ? "stereo" : "mono")}
 `;
   bindSecs(main);
+  main.querySelectorAll('input[name="aud"]').forEach((r) => r.onchange = async () => {
+    config.audio = { stereo: r.value === "true" }; await saveConfig(); toast(config.audio.stereo ? "Edaspidi stereo" : "Edaspidi mono");
+  });
   const newToken = () => [...crypto.getRandomValues(new Uint8Array(18))].map((b) => b.toString(16).padStart(2, "0")).join("");
   $("#feedOn") && ($("#feedOn").onclick = async () => { config.feed_token = newToken(); await saveConfig(); toast("Podcasti-feed sees"); });
   $("#feedRotate") && ($("#feedRotate").onclick = async () => {
