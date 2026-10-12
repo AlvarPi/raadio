@@ -69,7 +69,8 @@ def show_access():
     u = url()
     if not u:
         return
-    print(f"  🌐 {u}")
+    print(f"  🌐 selles arvutis: http://localhost:{u.rsplit(':', 1)[1]}")
+    print(f"  📱 telefonis (samas Wi-Fi-s): {u}")
     e = env()
     if e.get("WEB_PASS"):
         print(f"  Kasutajanimi: {e.get('WEB_USER') or 'raadio'}   (parool ununes? raadio parool)")

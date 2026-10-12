@@ -98,6 +98,7 @@ Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadi
 | Sümptom | Kontrolli |
 |---|---|
 | Leht ütleb „Salvesti vaikib“ | `raadio` – kas teenus töötab; `raadio log`; arvuti unerežiimis? |
+| Leht ei avane, „took too long to respond“ | IP-aadress võis muutuda (DHCP) või on valesti tipitud – `raadio` näitab kehtivat; samas arvutis kasuta `http://localhost:8788`; püsiv aadress = IP reserveerimine ruuteris |
 | Telefon ei ava kohalikku lehte | sama Wi-Fi? Windows: tulemüüri reegel `Raadiosalvestaja` (privaatvõrk); `raadio url` õige IP? |
 | ERR-i kava ei lae | laeb brauseris – kontrolli brauseri konsooli; serveri poolt seda ei laeta (robotikaitse) |
 | Salvestus tühi / katkeb | `raadio test 20 <jaam>`; voo URL muutunud? (`stations.json`, Kuku jaoks ka `KUKU_STREAM_URL`) |

@@ -95,7 +95,8 @@ echo
 echo "✓ Valmis."
 u=$("$DIR/.venv/bin/python" "$DIR/raadio.py" url)
 case "$u" in http*)
-  echo "  Ava telefoni või arvuti brauseris (samas Wi-Fi võrgus): $u"
+  echo "  Selles arvutis:              http://localhost:${u##*:}"
+  echo "  Telefonis (samas Wi-Fi-s):   $u"
   if grep -q "^WEB_PASS=..*" "$CONF"; then
     echo "  Kasutajanimi: $(grep '^WEB_USER=' "$CONF" | cut -d= -f2- | grep . || echo raadio)   Parool: see, mille sisestasid"
   else
