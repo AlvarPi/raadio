@@ -152,7 +152,7 @@ def build_feed(recs, base, token, slug, name=None):
 </rss>"""
 
 
-def make_handler(store, auth):
+def make_handler(store, auth, lan=None):
     stations_def = json.loads(STATIONS_FILE.read_text(encoding="utf-8"))
 
     class Handler(BaseHTTPRequestHandler):
@@ -262,7 +262,8 @@ def make_handler(store, auth):
             stations = [{"id": s["id"], "name": s["name"], "short": s.get("short"), "stream": s["stream"],
                          "schedule": {"type": s["schedule"]["type"], "channel": s["schedule"].get("channel")},
                          "server": s["id"] in (data.get("server_stations") or [])} for s in stations_def]
-            self.send_json({"stations": stations, "storage": store.kind, "updated": data.get("updated"), "episodes": data.get("episodes", [])})
+            self.send_json({"stations": stations, "storage": store.kind, "updated": data.get("updated"), "episodes": data.get("episodes", []),
+                            "lan": lan() if lan else None})  # telefoni aadress (podcasti-feed, kui leht on avatud localhost-ist)
 
         def api_recordings(self):
             done = [m for k, _ in store.list("rec/") if k.endswith(".json") and (m := store.get_json(k, None))]
@@ -361,8 +362,8 @@ def make_handler(store, auth):
     return Handler
 
 
-def start(store, port=8788, auth=None, host="0.0.0.0"):
-    srv = ThreadingHTTPServer((host, port), make_handler(store, auth))
+def start(store, port=8788, auth=None, host="0.0.0.0", lan=None):
+    srv = ThreadingHTTPServer((host, port), make_handler(store, auth, lan))
     srv.daemon_threads = True
     threading.Thread(target=srv.serve_forever, daemon=True, name="web").start()
     return srv

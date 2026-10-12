@@ -187,7 +187,7 @@ const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? 
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
 let tab = "kava", config = { shows: [], episodes: [], timers: [] }, recordings = [], status = null;
-let selectedDay = null, stations = [], schedules = {}, loading = {}, loadFailed = {}, storageKind = "r2";
+let selectedDay = null, stations = [], schedules = {}, loading = {}, loadFailed = {}, storageKind = "r2", lanUrl = null;
 let selectedStation = store.get("station", "kuku");
 const stationById = (id) => stations.find((s) => s.id === id);
 const stationName = (id) => stationById(id)?.name || id || "";
@@ -587,7 +587,9 @@ function renderShows(main) {
   const upcomingEps = config.episodes.filter((e) => !e.auto && Date.parse(e.end) > Date.now());
   // podcasti-feed (autosse: AntennaPod / Android Auto, Apple Podcasts / CarPlay)
   const tok = config.feed_token;
-  const feedUrl = (slug) => `${location.origin}/feed/${tok}/${slug}.xml`;
+  // localhost-ist avatud lehel telefoni jaoks arvuti võrguaadress (salvesti annab /api/schedule → lan)
+  const feedOrigin = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && lanUrl ? lanUrl : location.origin;
+  const feedUrl = (slug) => `${feedOrigin}/feed/${tok}/${slug}.xml`;
   // üks feed saate kohta: tellitud saated + taimerid + salvestuste saated (vanad numbrilised ID-d = Kuku)
   const normSid = (id) => (id == null ? "muu" : String(id).includes(":") ? String(id) : `kuku:${id}`);
   const slugOf = (id) => normSid(id).replace(/[^\w-]+/g, "-");
@@ -820,6 +822,7 @@ async function loadStatus() { try { status = await api("/api/status"); renderSta
   if (s.status === "fulfilled") {
     stations = s.value.stations;
     storageKind = s.value.storage || "r2";
+    lanUrl = s.value.lan || null;
     for (const st of stations.filter((x) => x.server)) schedules[st.id] = s.value.episodes.filter((e) => e.station === st.id);
   } else toast("Kava laadimine ebaõnnestus");
   if (c.status === "fulfilled") {

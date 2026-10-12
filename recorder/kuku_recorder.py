@@ -751,9 +751,15 @@ class Recorder:
         import webserver
         port = int(self.env.get("WEB_PORT") or 8788)
         auth = (self.env.get("WEB_USER") or "raadio", self.env["WEB_PASS"]) if self.env.get("WEB_PASS") else None
-        webserver.start(self.store, port=port, auth=auth)
+        lan = {}
+
+        def lan_url():
+            if "url" not in lan:
+                lan["url"] = f"http://{lan_address()}:{port}"
+            return lan["url"]
+        webserver.start(self.store, port=port, auth=auth, lan=lan_url)
         # aadressi leidmine võib aeglane olla – ära hoia käivitust kinni
-        threading.Thread(target=lambda: log(f"veebileht: http://{lan_address()}:{port}"
+        threading.Thread(target=lambda: log(f"veebileht: {lan_url()}"
                                             + ("" if auth else "  (parool puudub – ainult koduvõrgus!)")), daemon=True).start()
 
     @staticmethod
