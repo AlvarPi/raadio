@@ -62,6 +62,13 @@ def test_fetch_sky_weekly_template():
     assert night["show"]["name"] == "Öö" and morning[0]["show"]["thumbnail"] == "x.webp"
 
 
+def test_update_only_when_newer():
+    assert k.is_newer("b", "2026-10-12T20:00:00+03:00", "a", "2026-10-12T19:00:00+03:00")
+    assert not k.is_newer("b", "2026-10-12T17:50:56+03:00", "a", "2026-10-12T20:10:00+03:00")  # leht veel vana
+    assert k.is_newer("b", "2026-10-12T17:50:56+03:00", "a", None)  # vana paigaldus (aeg teadmata)
+    assert not k.is_newer("a", "x", "a", None)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -46,11 +46,26 @@ UPDATE_URL = "https://raadio.mastering.ee/version.json"
 UPDATE_EVERY = timedelta(hours=12)
 
 
-def local_version():
+def version_info():
+    """VERSION fail: 1. rida versioon, 2. rida avaldamise aeg (vanemates paigaldustes puudub)."""
     try:
-        return VERSION_FILE.read_text(encoding="utf-8").strip() or None
+        lines = VERSION_FILE.read_text(encoding="utf-8").split()
     except FileNotFoundError:
-        return None  # arenduskoopia (git) – uuendusi ei kontrollita
+        return None, None  # arenduskoopia (git) – uuendusi ei kontrollita
+    return (lines[0] if lines else None), (lines[1] if len(lines) > 1 else None)
+
+
+def local_version():
+    return version_info()[0]
+
+
+def is_newer(latest, latest_date, version, version_date):
+    if not latest or latest == version:
+        return False
+    try:
+        return parse_ts(latest_date) > parse_ts(version_date)
+    except Exception:
+        return True  # aeg teadmata -> erinev versioon = uuendus
 BITRATE = "64k"          # mono
 BITRATE_STEREO = "128k"  # stereo (config.json → audio.stereo)
 KEEP_DAYS = 14                     # vaikimisi säilitus (kui saatel pole "keep")
@@ -670,7 +685,7 @@ class Recorder:
             info = http_json(self.env.get("UPDATE_URL") or UPDATE_URL)
             latest = str(info.get("version") or "")
             self.update = ({"latest": latest, "date": info.get("date"), "notes": info.get("notes")}
-                           if latest and latest != self.version else None)
+                           if is_newer(latest, info.get("date"), *version_info()) else None)
             if self.update:
                 log(f"uuendus saadaval: {self.version} → {latest} (raadio update)")
         except Exception as e:
