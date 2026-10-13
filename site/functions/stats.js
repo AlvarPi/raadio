@@ -3,8 +3,10 @@
 const LABEL = {
   install_mac: "Paigaldused – macOS",
   install_win: "Paigaldused – Windows",
+  install_linux: "Paigaldused – Linux",
   install_mac_update: "Uuendused – macOS",
   install_win_update: "Uuendused – Windows",
+  install_linux_update: "Uuendused – Linux",
   update_check: "Uuenduste kontrollid",
   page_view: "Lehe avamised",
 };
@@ -30,7 +32,7 @@ export async function onRequestGet({ request, env }) {
   try {
     for (const r of (await env.STATS.prepare("SELECT kind, SUM(n) AS n FROM hits GROUP BY kind").all()).results || []) allTime[r.kind] = r.n;
   } catch {}
-  const installs = (allTime.install_mac || 0) + (allTime.install_win || 0);
+  const installs = (allTime.install_mac || 0) + (allTime.install_win || 0) + (allTime.install_linux || 0);
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86400e3).toISOString().slice(0, 10);
   const checks = (d) => rows.filter((r) => r.day === d && r.kind === "update_check").reduce((a, r) => a + r.n, 0);
@@ -38,7 +40,8 @@ export async function onRequestGet({ request, env }) {
   const activeEstimate = Math.round(checks(yesterday) / 2);
 
   const summary = { installs, installs_mac: allTime.install_mac || 0, installs_win: allTime.install_win || 0,
-    updates: (allTime.install_mac_update || 0) + (allTime.install_win_update || 0), active_estimate: activeEstimate,
+    installs_linux: allTime.install_linux || 0,
+    updates: (allTime.install_mac_update || 0) + (allTime.install_win_update || 0) + (allTime.install_linux_update || 0), active_estimate: activeEstimate,
     page_views: allTime.page_view || 0 };
   if (!authed || url.searchParams.get("format") === "json") {
     return Response.json(authed ? { summary, days: rows } : { installs, active_estimate: activeEstimate },
@@ -58,7 +61,7 @@ table{border-collapse:collapse;width:100%;background:#fff;border-radius:12px;ove
 th,td{padding:7px 10px;border-bottom:1px solid #eee;text-align:right}th:first-child,td:first-child{text-align:left}th{font-size:12px;color:#62656d}
 small{color:#62656d}</style>
 <h1>Raadiosalvesti – statistika</h1>
-<div class="k"><div><b>${installs}</b>paigaldust kokku<br><small>Mac ${summary.installs_mac} · Windows ${summary.installs_win}</small></div>
+<div class="k"><div><b>${installs}</b>paigaldust kokku<br><small>Mac ${summary.installs_mac} · Windows ${summary.installs_win} · Linux ${summary.installs_linux}</small></div>
 <div><b>≈ ${activeEstimate}</b>aktiivset paigaldust<br><small>eilsete uuenduskontrollide põhjal</small></div>
 <div><b>${summary.updates}</b>uuendust</div><div><b>${summary.page_views}</b>lehe avamist</div></div>
 <table><tr><th>Päev</th>${kinds.map((kd) => `<th>${esc(LABEL[kd])}</th>`).join("")}</tr>

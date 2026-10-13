@@ -4,7 +4,7 @@ See fail on mõeldud AI-agendile (Claude Code, Cursor, Codex jt), kes aitab kasu
 
 ## Mis see on
 
-Isiklik ajanihke-salvesti Eesti raadiojaamade **vabalt edastatavale otse-eetrile**: kasutaja valib veebilehel saated või seab taimeri, kasutaja enda arvuti (Mac või Windows) salvestab need ffmpeg-iga mono-MP3-na ja kasutaja kuulab neid hiljem telefonist. Sarnane raadiost lindistamisele.
+Isiklik ajanihke-salvesti Eesti raadiojaamade **vabalt edastatavale otse-eetrile**: kasutaja valib veebilehel saated või seab taimeri, kasutaja enda arvuti (Mac, Windows või Linux) salvestab need ffmpeg-iga mono-MP3-na ja kasutaja kuulab neid hiljem telefonist. Sarnane raadiost lindistamisele.
 
 Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tallinn, Sky Plus, Retro FM, Rock FM (`web/stations.json`).
 
@@ -29,9 +29,9 @@ R2:                  arvuti = salvesti ──▶ Cloudflare R2 ◀── Cloudfl
 | `recorder/kuku_recorder.py` | põhiprotsess: loeb `config.json`, kava, salvestab (ffmpeg), laeb üles, koristab, kirjutab `status.json` ja `schedule.json` |
 | `recorder/storage.py` | salvestuskiht: `LocalStorage` (kaust) või `R2Storage` (S3 API) – sama liides |
 | `recorder/webserver.py` | kohaliku režiimi veebiserver; **sama API** mis `web/functions/` |
-| `recorder/raadio.py` | juhtkäsk `raadio` (status/start/stop/restart/log/url/test), Mac + Windows |
-| `recorder/install.sh`, `install.ps1` | paigaldus (venv, seaded, taustateenus) |
-| `site/install`, `site/install.ps1` | ühe käsu alglaadijad (laevad repo alla ja käivitavad paigalduse) |
+| `recorder/raadio.py` | juhtkäsk `raadio` (status/start/stop/restart/log/url/test), Mac + Windows + Linux |
+| `recorder/install.sh`, `install.ps1`, `install-linux.sh` | paigaldus (venv, seaded, taustateenus) |
+| `site/install`, `site/install.ps1`, `site/linux` | ühe käsu alglaadijad (laevad repo alla ja käivitavad paigalduse) |
 | `web/functions/` | Cloudflare Pages Functions (R2 režiim): `api/schedule`, `api/config`, `api/status`, `api/recordings`, `audio/*`, `_middleware.js` (parool) |
 | `web/public/index.html` | kogu kasutajaliides (üks fail, vanilla JS), `sw.js` = offline/telefoni laadimine |
 | `web/stations.json` | jaamad: id, nimi, voo URL, kava tüüp (`kuku`, `sky` = salvesti laeb; `err` = brauseris) |
@@ -56,10 +56,11 @@ R2:                  arvuti = salvesti ──▶ Cloudflare R2 ◀── Cloudfl
 
 - macOS: `curl -fsSL https://raadio.mastering.ee/install | zsh`
 - Windows 10/11 (PowerShell): `irm https://raadio.mastering.ee/install.ps1 | iex`
+- Linux (systemd; Debian/Ubuntu/Raspberry Pi OS, Fedora, Arch): `curl -fsSL https://raadio.mastering.ee/linux | bash`
 
-Vaja: arvuti, mis on pidevalt sees (mitte unerežiimis). Alglaadija paigaldab ffmpeg-i ja Pythoni (macOS: Homebrew – kui seda pole, suuna https://brew.sh; Windows: winget), laeb koodi kausta `~/Raadiosalvestaja` või `%LOCALAPPDATA%\Raadiosalvestaja\app` ja käivitab `recorder/install.sh|ps1`, mis küsib režiimi ja parooli.
+Vaja: arvuti, mis on pidevalt sees (mitte unerežiimis). Alglaadija paigaldab ffmpeg-i ja Pythoni (macOS: Homebrew – kui seda pole, suuna https://brew.sh; Windows: winget; Linux: apt/dnf/pacman/zypper sudo-ga), laeb koodi kausta `~/Raadiosalvestaja` või `%LOCALAPPDATA%\Raadiosalvestaja\app` ja käivitab `recorder/install.sh|ps1` (Linuxis `install-linux.sh`), mis küsib režiimi ja parooli.
 
-Taustateenus: macOS launchd (`~/Library/LaunchAgents/ee.raadiosalvestaja.plist`), Windows Task Scheduler (`Raadiosalvestaja`, käivitub sisselogimisel ja iga 5 min, kui pole töös).
+Taustateenus: macOS launchd (`~/Library/LaunchAgents/ee.raadiosalvestaja.plist`), Windows Task Scheduler (`Raadiosalvestaja`, käivitub sisselogimisel ja iga 5 min, kui pole töös), Linux systemd kasutajateenus (`~/.config/systemd/user/raadiosalvestaja.service`, `loginctl enable-linger` → töötab ka ilma sisselogimiseta; `systemctl --user status raadiosalvestaja`).
 
 Mitteinteraktiivne paigaldus: `RAADIO_NONINTERACTIVE=1 RAADIO_MODE=local RAADIO_PASS=… ` (vt `.github/workflows/test.yml`).
 
@@ -82,7 +83,7 @@ raadio update          uuenda
 raadio parool          kasutajanimi + uus parool / parooli eemaldamine (kohalik veebileht)
 ```
 
-Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadiosalvestaja\salvestaja.log`.
+Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadiosalvestaja\salvestaja.log`, Linux `~/.local/state/raadiosalvestaja/salvesti.log`.
 
 ## Levinud ülesanded
 
@@ -91,7 +92,7 @@ Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadi
 - **Teine salvestuskaust / port:** `config.env` (`LOCAL_DIR`, `WEB_PORT`) → `raadio restart`.
 - **Kodust väljas ligipääs (kohalik režiim):** Tailscale mõlemasse seadmesse, arvutis `tailscale serve --bg 8788` → `https://<arvuti>.<tailnet>.ts.net` (https-iga töötab ka telefoni laadimine).
 - **Uuendamine:** `raadio update` (või paigalduskäsk uuesti) – seaded ja salvestused jäävad alles. Salvesti kontrollib 12 h järel `https://raadio.mastering.ee/version.json` vs paigalduse `VERSION` faili (`UPDATE_CHECK=0` lülitab välja); teade on `status.json` → `update`. Git-arenduskoopias `VERSION`-it pole – seal uuendusi ei kontrollita ja `raadio update` keeldub (kasuta `git pull`).
-- **Eemaldamine:** `raadio stop`, eemalda taustateenus (macOS: `launchctl bootout gui/$(id -u)/ee.raadiosalvestaja` ja kustuta plist; Windows: `Unregister-ScheduledTask -TaskName Raadiosalvestaja -Confirm:$false` ja kustuta `%LOCALAPPDATA%\Microsoft\WindowsApps\raadio.cmd`), kustuta rakenduse kaust. Salvestused ja seaded on eraldi (`~/Music/Raadiosalvestaja`, `~/.config/raadiosalvestaja`) – küsi enne kustutamist.
+- **Eemaldamine:** `raadio stop`, eemalda taustateenus (macOS: `launchctl bootout gui/$(id -u)/ee.raadiosalvestaja` ja kustuta plist; Windows: `Unregister-ScheduledTask -TaskName Raadiosalvestaja -Confirm:$false` ja kustuta `%LOCALAPPDATA%\Microsoft\WindowsApps\raadio.cmd`; Linux: `systemctl --user disable --now raadiosalvestaja`, kustuta `~/.config/systemd/user/raadiosalvestaja.service` ja `~/.local/bin/raadio`), kustuta rakenduse kaust. Salvestused ja seaded on eraldi (`~/Music/Raadiosalvestaja`, `~/.config/raadiosalvestaja`) – küsi enne kustutamist.
 
 ## Veaotsing
 
@@ -104,6 +105,7 @@ Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadi
 | Salvestus tühi / katkeb | `raadio test 20 <jaam>`; voo URL muutunud? (`stations.json`, Kuku jaoks ka `KUKU_STREAM_URL`) |
 | Podcastirakendus ei uuenda | kohalikus režiimis peab telefon lehe aadressini ulatuma (koduvõrk/Tailscale); kas võti vahetati? (`raadio url`, „Minu saated“ → Podcast) |
 | Telefoni laadimise nupp puudub | vajab https-i (Pages või Tailscale); tavalise `http://…:8788` peal saab ainult MP3 failina salvestada |
+| Linux: teenus ei käivitu / „Failed to connect to bus“ | installer peab jooksma selle kasutajana otse (ka SSH), mitte `su`/`sudo` all; `systemctl --user status raadiosalvestaja`, `raadio log`; Ubuntu tulemüür: `sudo ufw allow 8788/tcp` |
 | macOS: „Operation not permitted“ | välisel kettal: luba Pythonile „Removable Volumes“ (Süsteemiseaded → Privaatsus) |
 
 ## Arendus

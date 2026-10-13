@@ -1,0 +1,68 @@
+#!/bin/bash
+# Raadiosalvesti – ühe käsu paigaldus Linuxile (Debian/Ubuntu/Raspberry Pi OS, Fedora, Arch):
+#   curl -fsSL https://raadio.mastering.ee/linux | bash
+# Laeb tööriista kausta ~/Raadiosalvestaja, paigaldab vajadusel ffmpeg-i ja Pythoni, käivitab installeri.
+set -e
+# NB: kogu skript on funktsioonis, mis käivitatakse viimasel real. `curl | bash` korral loeb bash
+# skripti stdin-ist ja näiteks `apt-get` sööks muidu ülejäänud skripti ära.
+main() {
+  REPO=${RAADIO_REPO:-pilvre/raadio}
+  REF=${RAADIO_REF:-main}
+  APP=${RAADIO_DIR:-$HOME/Raadiosalvestaja}
+
+  echo "Raadiosalvesti – paigaldus"
+  if [ "$(uname)" != Linux ]; then
+    echo "See installer on Linuxile. macOS: curl -fsSL https://raadio.mastering.ee/install | zsh"
+    exit 1
+  fi
+  if ! command -v systemctl >/dev/null; then
+    echo "Taustateenuseks on vaja systemd-d (enamikus distributsioonides olemas)."; exit 1
+  fi
+
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  pyok() { python3 -c 'import sys; assert sys.version_info >= (3, 9)' 2>/dev/null && python3 -m venv "$tmp/venv-test" >/dev/null 2>&1; }
+  if ! command -v ffmpeg >/dev/null || ! pyok; then
+    SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO=sudo
+    echo "→ Paigaldan ffmpeg-i ja Pythoni (võib küsida sinu arvuti parooli)"
+    if command -v apt-get >/dev/null; then
+      $SUDO apt-get update -qq </dev/null && $SUDO apt-get install -y -qq ffmpeg python3 python3-venv </dev/null
+    elif command -v dnf >/dev/null; then
+      $SUDO dnf install -y python3 </dev/null
+      command -v ffmpeg >/dev/null || $SUDO dnf install -y ffmpeg </dev/null || $SUDO dnf install -y ffmpeg-free </dev/null
+    elif command -v pacman >/dev/null; then
+      $SUDO pacman -S --needed --noconfirm ffmpeg python </dev/null
+    elif command -v zypper >/dev/null; then
+      $SUDO zypper --non-interactive install ffmpeg python3 </dev/null
+    else
+      echo "Paigalda paketihalduriga ffmpeg ja Python 3.9+ (koos venv-iga) ning käivita see käsk uuesti."; exit 1
+    fi
+    command -v ffmpeg >/dev/null && pyok || { echo "ffmpeg-i või Pythoni paigaldus ebaõnnestus."; exit 1; }
+  fi
+
+  echo "→ Laen alla: $REPO ($REF)"
+  if [ -n "$RAADIO_SOURCE" ]; then
+    mkdir -p "$tmp/src" && cp -R "$RAADIO_SOURCE/." "$tmp/src/"
+  else
+    if ! curl -fsSL --retry 4 --retry-delay 3 --retry-all-errors "https://github.com/$REPO/archive/refs/heads/$REF.tar.gz" -o "$tmp/src.tgz" \
+       || ! tar xzf "$tmp/src.tgz" -C "$tmp"; then
+      echo "Allalaadimine GitHubist ebaõnnestus – proovi mõne minuti pärast uuesti."; exit 1
+    fi
+    mv "$tmp"/*-"$REF" "$tmp/src"
+  fi
+  if [ -d "$APP/.git" ]; then echo "$APP on git-koopia – uuenda seda käsuga git pull."; exit 1; fi
+  # uus kood asemele, Pythoni keskkond (.venv) jääb alles
+  [ -d "$APP/recorder/.venv" ] && mv "$APP/recorder/.venv" "$tmp/venv-keep"
+  rm -rf "$APP"
+  cp -R "$tmp/src" "$APP"
+  [ -d "$tmp/venv-keep" ] && mv "$tmp/venv-keep" "$APP/recorder/.venv"
+
+  # installer küsib režiimi ja parooli – klaviatuurilt, mitte torust
+  if [ -z "$RAADIO_NONINTERACTIVE" ] && { : </dev/tty; } 2>/dev/null; then
+    bash "$APP/recorder/install-linux.sh" </dev/tty
+  else
+    bash "$APP/recorder/install-linux.sh"
+  fi
+}
+
+main "$@"

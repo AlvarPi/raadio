@@ -101,3 +101,44 @@ jobs:
           key=$(curl -s -u raadio:test http://localhost:8788/api/recordings | python3 -c "import json,sys;d=json.load(sys.stdin);print(d[0]['key'])")
           echo "salvestus: $key"
           test "$(curl -s -o /dev/null -w '%{http_code}' -u raadio:test -H 'Range: bytes=0-999' http://localhost:8788/audio/$key)" = 206
+
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Paigaldus (site/linux, kohalik režiim; ffmpeg + venv paigaldab alglaadija)
+        env:
+          RAADIO_SOURCE: ${{ github.workspace }}
+          RAADIO_NONINTERACTIVE: "1"
+          RAADIO_MODE: local
+          RAADIO_PASS: test
+          RAADIO_USER: raadio
+        run: bash site/linux
+      - name: Teenus ja veebileht
+        run: |
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          systemctl --user status raadiosalvestaja --no-pager | head -5
+          for i in $(seq 45); do
+            curl -sf -u raadio:test http://localhost:8788/api/schedule -o s.json \
+              && python3 -c "import json,sys;sys.exit(0 if json.load(open('s.json'))['episodes'] else 1)" && break
+            sleep 2
+          done
+          cat ~/.local/state/raadiosalvestaja/salvesti.log
+          python3 -c "import json;d=json.load(open('s.json'));print('jaamu',len(d['stations']),'saateid',len(d['episodes']),'lan',d.get('lan'));assert d['episodes']"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8788/api/config)" = 401
+          ~/.local/bin/raadio
+      - name: Testsalvestus ja helifail
+        run: |
+          ~/.local/bin/raadio test 20 vikerraadio
+          key=$(curl -s -u raadio:test http://localhost:8788/api/recordings | python3 -c "import json,sys;d=json.load(sys.stdin);print(d[0]['key'])")
+          echo "salvestus: $key"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -u raadio:test -H 'Range: bytes=0-999' http://localhost:8788/audio/$key)" = 206
+      - name: raadio stop / start / restart
+        run: |
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          ~/.local/bin/raadio stop
+          ! systemctl --user is-active -q raadiosalvestaja
+          ~/.local/bin/raadio start
+          ~/.local/bin/raadio restart
+          systemctl --user is-active raadiosalvestaja

@@ -1,6 +1,6 @@
 # Raadiosalvesti
 
-Isiklik ajanihke-salvesti Eesti raadiojaamade **vabalt kättesaadavale otse-eetrile** – nagu vanasti kassettmakk raadio kõrval. Vali kavast saated või sea taimer, Mac salvestab need mono-MP3-na – oma kettale või soovi korral Cloudflare R2-sse – ja hiljem kuulad neid telefonist.
+Isiklik ajanihke-salvesti Eesti raadiojaamade **vabalt kättesaadavale otse-eetrile** – nagu vanasti kassettmakk raadio kõrval. Vali kavast saated või sea taimer, sinu arvuti (Mac, Windows või Linux) salvestab need mono-MP3-na – oma kettale või soovi korral Cloudflare R2-sse – ja hiljem kuulad neid telefonist.
 
 Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tallinn, Sky Plus, Retro FM, Rock FM (lisa uusi failis [`web/stations.json`](web/stations.json)).
 
@@ -30,7 +30,7 @@ Kohalik (vaikimisi):  Mac: salvesti + veebiserver + kaust ~/Music/Raadiosalvesta
 R2:                   Mac: salvesti ──▶ Cloudflare R2 ◀── Cloudflare Pages (web/)  ◀── telefon (kõikjal)
 ```
 
-- **Kohalik:** pilve pole vaja. Mac jagab lehte ise (`http://<mac>.local:8788`). Kodust väljas ligipääsuks vt [Tailscale](#kodust-väljas-tailscale).
+- **Kohalik:** pilve pole vaja. Arvuti jagab lehte ise (Macis `http://<mac>.local:8788`, mujal `http://<arvuti-IP>:8788`). Kodust väljas ligipääsuks vt [Tailscale](#kodust-väljas-tailscale).
 - **R2:** salvestused Cloudflare R2-s, leht Cloudflare Pages'is parooli taga, kuulamine kõikjal.
 
 **Kava allikad.** Kuku kava laeb salvesti (`schedule.json`). ERR-i kava-API on robotikaitse taga, seetõttu laeb ERR-i kava veebileht sinu brauseris (nagu ERR-i enda leht) ja kirjutab valitud saated konkreetsete kellaaegadena `config.json`-i. „Salvesta kõik saated“ ERR-i jaamades uueneb seega iga kord, kui lehe avad – ava see vähemalt kord nädalas. Taimerid töötavad ilma kavata.
@@ -57,7 +57,7 @@ Kohalikus režiimis uuendab AntennaPod ainult siis, kui telefon arvuti aadressin
 
 ## Paigaldus
 
-Vaja: macOS või Windows 10/11 arvuti, mis on pidevalt sees.
+Vaja: macOS, Windows 10/11 või Linuxi (systemd; nt Ubuntu, Debian, Raspberry Pi OS, Fedora) arvuti, mis on pidevalt sees.
 
 ### Kohalik režiim (soovitatav)
 
@@ -66,12 +66,17 @@ Vaja: macOS või Windows 10/11 arvuti, mis on pidevalt sees.
 curl -fsSL https://raadio.mastering.ee/install | zsh
 ```
 
+**Linux** (terminal; sobib hästi ka Raspberry Pi):
+```bash
+curl -fsSL https://raadio.mastering.ee/linux | bash
+```
+
 **Windows 10/11** (PowerShell):
 ```powershell
 irm https://raadio.mastering.ee/install.ps1 | iex
 ```
 
-Installer paigaldab vajadusel ffmpeg-i ja Pythoni (macOS: Homebrew, Windows: winget), laeb tööriista alla ja küsib, kas hoida salvestused arvutis või Cloudflare R2-s. Käsitsi: `git clone https://github.com/pilvre/raadio.git && cd raadio/recorder && ./install.sh` (Windowsis `install.ps1`).
+Installer paigaldab vajadusel ffmpeg-i ja Pythoni (macOS: Homebrew, Windows: winget, Linux: apt/dnf/pacman – võib küsida arvuti parooli), laeb tööriista alla ja küsib, kas hoida salvestused arvutis või Cloudflare R2-s. Käsitsi: `git clone https://github.com/pilvre/raadio.git && cd raadio/recorder && ./install.sh` (Windowsis `install.ps1`, Linuxis `install-linux.sh`).
 
 Installer näitab lõpus kaks aadressi: samas arvutis `http://localhost:8788`, telefonis (samas Wi-Fi võrgus) nt `http://minu-mac.local:8788` või `http://<arvuti-IP>:8788`. Kehtivat aadressi näitab alati käsk `raadio`. Logi sisse kasutajanime ja parooliga, mille installerile andsid (vaikimisi kasutajanimi `raadio`; ununes? `raadio parool` näitab kasutajanime ja laseb parooli lähtestada). Salvestused on kaustas `~/Music/Raadiosalvestaja`, seaded failis `~/.config/raadiosalvestaja/config.env`.
 
@@ -116,8 +121,8 @@ Ilma `AUTH_USER`/`AUTH_PASS` saladusteta ei lase leht kedagi sisse.
 
 **Statistika.** raadio.mastering.ee loendab ainult päevaseid arve (lehe avamised, paigaldused, uuendused ja uuenduste kontrollid) – IP-aadresse ega muid isikuandmeid ei salvestata (`site/functions/`).
 
-Taustateenus: macOS-is launchd (`~/Library/LaunchAgents/ee.raadiosalvestaja.plist`), Windowsis Task Scheduler (`Raadiosalvestaja`).
-Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadiosalvestaja\salvestaja.log`.
+Taustateenus: macOS-is launchd (`~/Library/LaunchAgents/ee.raadiosalvestaja.plist`), Windowsis Task Scheduler (`Raadiosalvestaja`), Linuxis systemd kasutajateenus (`~/.config/systemd/user/raadiosalvestaja.service`, linger – käivitub ka ilma sisselogimiseta).
+Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadiosalvestaja\salvestaja.log`, Linux `~/.local/state/raadiosalvestaja/salvesti.log`.
 
 ## Arendus
 

@@ -4,6 +4,7 @@ const TRACK = {
   "/": "page_view",
   "/install": "install_mac",
   "/install.ps1": "install_win",
+  "/linux": "install_linux",
   "/version.json": "update_check",
 };
 

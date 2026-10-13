@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Raadiosalvesti juhtkäsk (Mac ja Windows).
+"""Raadiosalvesti juhtkäsk (Mac, Windows, Linux).
 
     raadio            olek: kas töötab, mida salvestab, veebilehe aadress, viimased logiread
     raadio start|stop|restart
@@ -25,6 +25,8 @@ from storage import make_storage  # noqa: E402
 
 MAC = sys.platform == "darwin"
 WIN = sys.platform == "win32"
+LINUX = sys.platform.startswith("linux")
+LINUX_UNIT = "raadiosalvestaja"
 MAC_LABELS = ["ee.raadiosalvestaja", "ee.kuku.salvestaja"]  # uus, vana
 WIN_TASK = "Raadiosalvestaja"
 NO_WINDOW = {"creationflags": 0x08000000} if WIN else {}
@@ -50,7 +52,14 @@ def mac_plist():
     return Path.home() / "Library/LaunchAgents" / f"{mac_label()}.plist"
 
 
+def systemctl(*args):
+    os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    return sh(["systemctl", "--user", *args])
+
+
 def running():
+    if LINUX:
+        return systemctl("is-active", "--quiet", LINUX_UNIT).returncode == 0
     if MAC:
         return sh(["launchctl", "print", f"gui/{os.getuid()}/{mac_label()}"]).returncode == 0
     if WIN:
@@ -89,6 +98,8 @@ def start():
             time.sleep(2)
     elif WIN:
         ps(f"Start-ScheduledTask -TaskName '{WIN_TASK}'")
+    elif LINUX:
+        systemctl("start", LINUX_UNIT)
     time.sleep(2)
     if running():
         print("käivitatud")
@@ -113,11 +124,15 @@ def stop(ask=True):
     elif WIN:
         ps(f"Stop-ScheduledTask -TaskName '{WIN_TASK}'")
         kill_windows_ffmpeg()
+    elif LINUX:
+        systemctl("stop", LINUX_UNIT)
     print("peatatud (käivitub uuesti 'raadio start' või arvuti taaskäivitusega)")
 
 
 def restart():
-    if MAC and running():
+    if LINUX:
+        systemctl("restart", LINUX_UNIT)
+    elif MAC and running():
         sh(["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{mac_label()}"])
     else:
         stop(ask=False)
@@ -215,6 +230,8 @@ def update():
     env_ = dict(os.environ, RAADIO_NONINTERACTIVE="1", RAADIO_DIR=str(rec.APP_ROOT))
     if MAC:
         os.execvpe("zsh", ["zsh", "-c", "curl -fsSL 'https://raadio.mastering.ee/install?update=1' | zsh"], env_)
+    elif LINUX:
+        os.execvpe("bash", ["bash", "-c", "curl -fsSL 'https://raadio.mastering.ee/linux?update=1' | bash"], env_)
     elif WIN:
         # eraldi aknas ja viivitusega: see protsess (venv-i python) peab enne lõppema, muidu on failid lukus
         cmd = ("Start-Sleep 2; $env:RAADIO_NONINTERACTIVE='1'; "
@@ -223,7 +240,7 @@ def update():
                          creationflags=0x00000010, env=env_)  # CREATE_NEW_CONSOLE
         print("Uuendus käivitus eraldi aknas.")
     else:
-        print("Toetatud on macOS ja Windows.")
+        print("Toetatud on macOS, Windows ja Linux.")
 
 
 def set_conf(key, value):
