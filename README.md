@@ -100,6 +100,7 @@ Vaja lisaks: Node.js, Cloudflare konto.
 2. **Salvesti:** installer → vali 2) Cloudflare R2, täida avanevas failis konto ID ja võtmed, käivita installer uuesti.
 3. **Veebileht:** tee GitHubis (tasuta konto) repost koopia (fork) → Cloudflare **Compute → Workers & Pages → Create → Pages → Connect to Git** → sinu fork
    - Build command: *(tühi)*, Build output: `public`, Root directory: `web`
+   - NB: vali **Pages**, mitte Worker (Cloudflare pakub vaikimisi Workerit), ja sea *Root directory (advanced)*. Kui see jääb tühjaks, näitab sinu aadress hoopis tutvustuslehte – paranda: Settings → Build → Root directory `web` → uus deploy.
    - Kui bucketi nimi pole `raadio`, muuda `web/wrangler.toml` (binding `KUKU`)
    - **Settings → Variables and Secrets** (tüüp *Secret*): `AUTH_USER` (kasutajanimi) ja `AUTH_PASS` (parool), seejärel **Retry deployment**
 

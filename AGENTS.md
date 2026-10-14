@@ -68,7 +68,7 @@ Mitteinteraktiivne paigaldus: `RAADIO_NONINTERACTIVE=1 RAADIO_MODE=local RAADIO_
 
 1. Cloudflare → Storage & Databases → R2 Object Storage → bucket (nt `raadio`) → API token *Object Read & Write* ainult sellele bucketile.
 2. Installer → režiim 2 → `config.env`-i `R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` → installer uuesti.
-3. Repo fork (GitHubi konto) → Cloudflare Compute → Workers & Pages → Create → Pages → Connect to Git: root `web`, output `public`, build command tühi. Bucket peab klappima `web/wrangler.toml`-iga (binding `KUKU`).
+3. Repo fork (GitHubi konto) → Cloudflare Compute → Workers & Pages → Create → Pages → Connect to Git: root `web`, output `public`, build command tühi. Bucket peab klappima `web/wrangler.toml`-iga (binding `KUKU`). Levinud viga: Worker Pagesi asemel või tühi Root directory → aadressil avaneb tutvustusleht (`site/`, kollase hoiatusega) – paranda Settings → Build → Root directory `web` → uus deploy.
 4. Pages saladused `AUTH_USER` (kasutajanimi), `AUTH_PASS` (parool) → Retry deployment.
 
 ## Kasutaja käsud
