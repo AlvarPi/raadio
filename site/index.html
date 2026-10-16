@@ -860,12 +860,12 @@
             faili pane konto ID ning tokeni <i>Access Key ID</i> ja <i>Secret</i>, seejärel käivita käsk uuesti.</div>
         </li>
         <li>
-          <div>Kui sul pole GitHubis kontot, siis tee see (tasuta). Järgmisena tee GitHubis <a
-              href="https://github.com/pilvre/raadio/fork" target="_blank" rel="noopener">koopia (fork)</a> ja ühenda
-            see
-            Cloudflare'is: <b>Compute → Workers &amp; Pages → Create → Pages → Connect to Git</b>. Valikutes Root
-            directory
-            <code>web</code>, build output <code>public</code>, build command tühi.
+          <div>Kui sul pole GitHubis kontot, siis tee see (tasuta). Järgmisena tee GitHubis Raadiosalvesti koodist <a
+              href="https://github.com/pilvre/raadio/fork" target="_blank" rel="noopener">koopia (fork)</a>. Koopias on
+            kõik koos: salvesti, <b>sinu isiklik veebileht</b> (kaust <code>web</code>) ja see tutvustusleht (kaust
+            <code>site</code>, seda pole sul vaja). Cloudflare'is avaldad ainult kausta <code>web</code>:
+            <b>Compute → Workers &amp; Pages → Create → Pages → Connect to Git</b> → vali oma koopia. Valikutes Root
+            directory <code>web</code>, build output <code>public</code>, build command tühi.
             <br><br><b>NB!</b> Vali kindlasti <b>Pages</b>, mitte Worker (Cloudflare pakub vaikimisi Workerit), ja ava
             <i>Build settings</i> all <i>Root directory (advanced)</i>, et sinna <code>web</code> kirjutada. Kui see jääb
             tühjaks, avaneb sinu aadressil hoopis see tutvustusleht – siis muuda projekti seadetes (Settings → Build)
