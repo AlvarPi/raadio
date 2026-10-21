@@ -101,7 +101,7 @@ Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadi
 | Leht ütleb „Salvesti vaikib“ | `raadio` – kas teenus töötab; `raadio log`; arvuti unerežiimis? |
 | Leht ei avane, „took too long to respond“ | IP-aadress võis muutuda (DHCP) või on valesti tipitud – `raadio` näitab kehtivat; samas arvutis kasuta `http://localhost:8788`; püsiv aadress = IP reserveerimine ruuteris |
 | Telefon ei ava kohalikku lehte | sama Wi-Fi? Windows: tulemüüri reegel `Raadiosalvestaja` (privaatvõrk); `raadio url` õige IP? |
-| ERR-i kava ei lae | laeb brauseris – kontrolli brauseri konsooli; serveri poolt seda ei laeta (robotikaitse) |
+| ERR-i kava ei lae | alates 10.2026 on ERR-i raadiod `eestiraadio.err.ee` all; uus API (`/api/v1/getSchedule/<kanal>/<kesköö unix>?adjacentDays=1`) ei luba teistelt saitidelt päringuid (CORS) ja on robotikaitse taga – **ära möödu** (ei proxy't, `curl`-i ega brauseri matkimist). ERR-i jaamu saab salvestada taimeri ja ⏺ Salvesta abil; voog (`icecast.err.ee`) töötab |
 | Salvestus tühi / katkeb | `raadio test 20 <jaam>`; voo URL muutunud? (`stations.json`, Kuku jaoks ka `KUKU_STREAM_URL`) |
 | Podcastirakendus ei uuenda | kohalikus režiimis peab telefon lehe aadressini ulatuma (koduvõrk/Tailscale); kas võti vahetati? (`raadio url`, „Minu saated“ → Podcast) |
 | Telefoni laadimise nupp puudub | vajab https-i (Pages või Tailscale); tavalise `http://…:8788` peal saab ainult MP3 failina salvestada |

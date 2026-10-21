@@ -193,29 +193,36 @@ const stationById = (id) => stations.find((s) => s.id === id);
 const stationName = (id) => stationById(id)?.name || id || "";
 
 // --- ERR-i kava: laetakse brauseris (serveripoolne päring on Cloudflare'i robotikaitse taga) ---
-const ERR_API = "https://vikerraadio.err.ee/api/radioSchedule/getTimelineSchedule2";
+// ERR (eestiraadio.err.ee, alates 10.2026). Laetakse kasutaja brauseris nagu varemgi – kuid uus API ei luba praegu
+// teistelt saitidelt päringuid (CORS) ja on robotikaitse taga. Ära möödu: kui ERR CORS-i lubab, hakkab see tööle.
+const ERR_API = "https://eestiraadio.err.ee/api/v1/getSchedule";
+const ERR_BLOCKED = "ERR muutis oktoobris oma raadiosaiti ja uus kava ei ole teistele lehtedele kättesaadav.";
 const stripHtml = (h, n = 400) => (h || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
-const errPhoto = (photos) => { const p = (photos || [])[0]; if (!p) return null;
-  const t = p.photoTypes || {}; return (t["22"] || t["8"] || {}).url || p.photoUrlBase || null; };
+// Tallinna kesköö (unix s) kuupäevale y-m-d
+const tallinnMidnight = (y, m, d) => {
+  const utc = Date.UTC(y, m - 1, d, 12), local = new Date(new Date(utc).toLocaleString("en-US", { timeZone: TZ }) + " UTC");
+  return (Date.UTC(y, m - 1, d) - (local - utc)) / 1000;
+};
 async function fetchErr(st) {
   const seen = new Set(), out = [];
   // API annab päringupäeva ±1 päev -> +1, +4, +7 katavad tänasest 9 päeva
   for (const off of [1, 4, 7]) {
     const [y, m, d] = dayKey(new Date(Date.now() + off * 86400e3).toISOString()).split("-").map(Number);
-    const r = await fetch(`${ERR_API}?day=${d}&month=${m}&year=${y}&channel=${st.schedule.channel}&portal=radio`);
-    if (!r.ok) throw new Error(`${st.name}: ${r.status}`);
-    for (const x of await r.json()) {
+    let r;
+    try { r = await fetch(`${ERR_API}/${st.schedule.channel}/${tallinnMidnight(y, m, d)}?adjacentDays=1`); }
+    catch { throw new Error(ERR_BLOCKED); }
+    if (!r.ok) throw new Error(`${ERR_BLOCKED} (${r.status})`);
+    for (const ch of (await r.json()).data?.channels || []) for (const x of ch.items || []) {
       if (seen.has(x.id) || x.endTime <= x.startTime) continue;
       seen.add(x.id);
-      const c = (x.contents || [])[0] || {}, root = c.rootContent || {};
-      const name = x.programName.replace(/\*+$/, "").trim();
+      const name = (x.seriesName || x.programName).replace(/\*+$/, "").trim();
+      const photo = x.photo?.photoUrlBase;
       out.push({
         id: `${st.id}:${x.id}`, station: st.id,
         start: new Date(x.startTime * 1000).toISOString(), end: new Date(x.endTime * 1000).toISOString(),
-        title: (x.contentHeading || name).replace(/\*+$/, "").trim(), rerun: x.programName.endsWith("*"),
-        description: stripHtml(c.lead) || stripHtml(c.body),
-        show: { id: `${st.id}:${x.radiomanId}`, name, description: stripHtml(root.lead, 200),
-          thumbnail: errPhoto(x.photos) || errPhoto(root.photos) },
+        title: (x.heading || name).replace(/\*+$/, "").trim(), rerun: x.programName.trim().endsWith("*"),
+        description: stripHtml(x.lead),
+        show: { id: `${st.id}:${x.radiomanId}`, name, description: "", thumbnail: photo ? `https://s.err.ee/photo/${photo}` : null },
       });
     }
   }
@@ -326,7 +333,7 @@ function renderKava(main) {
   if (!schedule) {
     const st = stationById(selectedStation);
     if (loadFailed[selectedStation]) {
-      main.innerHTML = chips + `<div class="empty">Kava laadimine ebaõnnestus.<br><small>${esc(loadFailed[selectedStation])}</small><br><br><button class="btn" id="retry">Proovi uuesti</button></div>`;
+      main.innerHTML = chips + `<div class="empty">Kava laadimine ebaõnnestus.<br><small>${esc(loadFailed[selectedStation])}</small><br><small>Salvestada saab ikka: <b>Taimerid</b> või ⏺ Salvesta.</small><br><br><button class="btn" id="retry">Proovi uuesti</button></div>`;
       bindStations(main);
       $("#retry").onclick = () => { delete loadFailed[selectedStation]; render(); };
       return;
