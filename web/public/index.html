@@ -262,7 +262,7 @@ const errHelp = () => `<div class="errhelp">
   <p><b>ERR-i kava tuleb tuua ERR-i lehelt</b> (ERR muutis oma saiti ega luba kava enam teistel lehtedel laadida).</p>
   <ol><li>Lohista see nupp brauseri järjehoidjaribale (arvutis, üks kord). Kui järjehoidjariba pole näha, lülita see sisse –
     Chrome'is <b>Seaded → Välimus → Järjehoidjariba → Kuva alati</b>: <a class="btn primary bm" href="${esc(errBookmarklet())}" onclick="event.preventDefault();alert('Lohista nupp järjehoidjaribale, siis ava eestiraadio.err.ee ja klõpsa seal järjehoidjat.')">📻 ERR → Raadiosalvesti</a></li>
-  <li>Ava <a href="${ERR_ORIGIN}/vikerraadio/kava" target="_blank" rel="noopener">eestiraadio.err.ee</a> ja klõpsa järjehoidjat. Kava jõuab siia ~9 päevaks; uuenda kord nädalas.</li></ol>
+  <li>Ava <a href="${ERR_ORIGIN}/vikerraadio/kava" target="_blank" rel="noopener">eestiraadio.err.ee</a> ja klõpsa järjehoidjat. Tellitud saated salvestuvad edasi nädalamustri järgi – uuenda kava, kui ERR seda muudab või midagi salvestub valesti.</li></ol>
   <p><small>Salvestada saab ka ilma kavata: <b>Taimerid</b> või ⏺ Salvesta.</small></p></div>`;
 // NB: tagastab Promise'i ainult siis, kui päriselt laeb (muidu render() -> then -> render() tsükkel)
 // brauser laeb ise ainult ERR-i kava; ülejäänu (Kuku, Sky) tuleb salvestilt schedule.json-ist
@@ -278,6 +278,33 @@ function loadStation(id) {
       .finally(() => { delete loading[id]; });
   }
   return loading[id];
+}
+// ERR annab kava ~9 päeva ette, saatekava muutub aga harva → tellitud saate nädalamustrit korratakse
+// PREDICT_DAYS päeva ette (id „<saade>@<päev>T<HHMM>“, auto). Kasutaja uuendab kava, kui midagi muutub.
+const PREDICT_DAYS = 28;
+const tzOff = (ms) => new Date(new Date(ms).toLocaleString("en-US", { timeZone: TZ }) + " UTC") - ms;
+const tallinnISO = (ymd, hm) => { const [y, m, d] = ymd.split("-").map(Number), [hh, mm] = hm.split(":").map(Number);
+  const g = Date.UTC(y, m - 1, d, hh, mm); return new Date(g - tzOff(g)).toISOString(); };
+const weekday = (ymd) => new Date(ymd + "T12:00:00Z").getUTCDay();
+const addDays = (ymd, n) => new Date(Date.parse(ymd + "T12:00:00Z") + n * 86400e3).toISOString().slice(0, 10);
+function predictWeekly(s, eps, lastDay, now) {
+  const slots = new Map();
+  for (const e of eps) {
+    const hm = fmtTime(e.start).replace(".", ":");
+    slots.set(`${weekday(dayKey(e.start))}|${hm}`, { wd: weekday(dayKey(e.start)), hm, dur: Date.parse(e.end) - Date.parse(e.start) });
+  }
+  const out = [], until = addDays(dayKey(new Date(now).toISOString()), PREDICT_DAYS);
+  for (let day = addDays(lastDay, 1); day <= until; day = addDays(day, 1)) {
+    for (const sl of slots.values()) {
+      if (sl.wd !== weekday(day)) continue;
+      const start = tallinnISO(day, sl.hm), end = new Date(Date.parse(start) + sl.dur).toISOString();
+      if (Date.parse(end) < now) continue;
+      const [y, m, d] = day.split("-");
+      out.push({ id: `${s.id}@${day}T${sl.hm.replace(":", "")}`, station: s.station, start, end, title: `${s.name} ${d}.${m}.${y}`,
+        rerun: false, description: "", show: { id: s.id, name: s.name, description: "", thumbnail: eps[0]?.show?.thumbnail || null }, auto: true });
+    }
+  }
+  return out;
 }
 // ERR-i saadete tellimused -> konkreetsed episoodid config.episodes alla (auto)
 async function syncBrowserShows() {
@@ -297,6 +324,14 @@ async function syncBrowserShows() {
       if (!s || (ep.rerun && !s.reruns) || Date.parse(ep.end) < now || config.episodes.some((e) => e.id === ep.id)) continue;
       config.episodes.push({ ...ep, auto: true });
       changed = true;
+    }
+    // nädalamuster kava lõpust edasi
+    const lastDay = eps.length ? dayKey(eps.reduce((a, e) => (e.start > a ? e.start : a), "")) : null;
+    if (lastDay) {
+      const pred = list.flatMap((s) => predictWeekly(s, eps.filter((e) => e.show.id === s.id && (!e.rerun || s.reruns)), lastDay, now));
+      const isPred = (e) => e.auto && e.station === sid && String(e.id).includes("@");
+      const oldIds = config.episodes.filter(isPred).map((e) => e.id).sort().join(), newIds = pred.map((e) => e.id).sort().join();
+      if (oldIds !== newIds) { config.episodes = config.episodes.filter((e) => !isPred(e)).concat(pred); changed = true; }
     }
     config.synced = { ...(config.synced || {}), [sid]: new Date().toISOString() };
     changed = true;
@@ -402,8 +437,7 @@ function renderKava(main) {
   const stSel = stationById(selectedStation);
   let errInfo = "";
   if (stSel?.schedule?.type === "err" && !stSel.server && errSched?.updated) {
-    const until = Date.parse(schedule[schedule.length - 1].end), daysLeft = (until - now) / 86400e3;
-    errInfo = `<div class="errinfo ${daysLeft < 3 ? "old" : ""}">ERR-i kava toodud ${fmtDate(errSched.updated)}, ulatub ${fmtDate(new Date(until).toISOString())}-ni${daysLeft < 3 ? " – aeg uuendada" : ""} · <button onclick="errHelpOpen=!errHelpOpen;render()">${errHelpOpen ? "peida juhend" : "uuenda"}</button></div>${errHelpOpen ? errHelp() : ""}`;
+    errInfo = `<div class="errinfo">ERR-i kava toodud ${fmtDate(errSched.updated)} · tellitud saated jätkuvad nädalamustri järgi · <button onclick="errHelpOpen=!errHelpOpen;render()">${errHelpOpen ? "peida juhend" : "uuenda"}</button></div>${errHelpOpen ? errHelp() : ""}`;
   }
   main.innerHTML = chips + errInfo + `<div class="days">${days.map((d) => `<button data-day="${d}" class="${d === selectedDay ? "on" : ""}">${dayLabel(d)}</button>`).join("")}</div>
     <div class="list">${eps.map((e) => {
