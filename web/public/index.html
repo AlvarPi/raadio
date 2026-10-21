@@ -88,6 +88,11 @@
   details.sec > summary .cnt { font-weight: 500; text-transform: none; letter-spacing: 0; }
   h2:first-child { margin-top: 4px; }
   .empty { color: var(--muted); text-align: center; padding: 40px 0; }
+  .errhelp { max-width: 560px; margin: 20px auto; font-size: 14px; color: var(--muted); }
+  .errhelp b { color: var(--text); } .errhelp ol { padding-left: 20px; } .errhelp li { margin: 10px 0; }
+  .errhelp .bm { display: inline-block; margin-top: 6px; cursor: grab; text-decoration: none; }
+  .errinfo { font-size: 13px; color: var(--muted); margin: -2px 0 10px; }
+  .errinfo.old { color: var(--accent); } .errinfo button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
   .usage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
   .usage .total { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; }
   .usage .total span { font-weight: 400; font-size: 13px; color: var(--muted); }
@@ -170,6 +175,7 @@
 const TZ = "Europe/Tallinn";
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDate = (iso) => new Date(iso).toLocaleDateString("et-EE", { timeZone: TZ, day: "numeric", month: "numeric" });
 const fmtTime = (iso) => new Date(iso).toLocaleTimeString("et-EE", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 const dayKey = (iso) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: TZ });
 const dayLabel = (key) => {
@@ -193,47 +199,76 @@ const stationById = (id) => stations.find((s) => s.id === id);
 const stationName = (id) => stationById(id)?.name || id || "";
 
 // --- ERR-i kava: laetakse brauseris (serveripoolne päring on Cloudflare'i robotikaitse taga) ---
-// ERR (eestiraadio.err.ee, alates 10.2026). Laetakse kasutaja brauseris nagu varemgi – kuid uus API ei luba praegu
-// teistelt saitidelt päringuid (CORS) ja on robotikaitse taga. Ära möödu: kui ERR CORS-i lubab, hakkab see tööle.
-const ERR_API = "https://eestiraadio.err.ee/api/v1/getSchedule";
-const ERR_BLOCKED = "ERR muutis oktoobris oma raadiosaiti ja uus kava ei ole teistele lehtedele kättesaadav.";
+// ERR (eestiraadio.err.ee, alates 10.2026): kava-API ei luba teistelt saitidelt päringuid ja on robotikaitse taga.
+// Kasutaja toob kava ise: järjehoidja-nupp loeb ERR-i lehel (päris brauseris, ERR-i enda API) kava ja saadab selle
+// postMessage'iga siia → /api/err-schedule (err_schedule.json) → nähtav kõigis seadmetes, tellimused nagu varem.
+const ERR_ORIGIN = "https://eestiraadio.err.ee";
 const stripHtml = (h, n = 400) => (h || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
-// Tallinna kesköö (unix s) kuupäevale y-m-d
-const tallinnMidnight = (y, m, d) => {
-  const utc = Date.UTC(y, m - 1, d, 12), local = new Date(new Date(utc).toLocaleString("en-US", { timeZone: TZ }) + " UTC");
-  return (Date.UTC(y, m - 1, d) - (local - utc)) / 1000;
-};
-async function fetchErr(st) {
-  const seen = new Set(), out = [];
-  // API annab päringupäeva ±1 päev -> +1, +4, +7 katavad tänasest 9 päeva
-  for (const off of [1, 4, 7]) {
-    const [y, m, d] = dayKey(new Date(Date.now() + off * 86400e3).toISOString()).split("-").map(Number);
-    let r;
-    try { r = await fetch(`${ERR_API}/${st.schedule.channel}/${tallinnMidnight(y, m, d)}?adjacentDays=1`); }
-    catch { throw new Error(ERR_BLOCKED); }
-    if (!r.ok) throw new Error(`${ERR_BLOCKED} (${r.status})`);
-    for (const ch of (await r.json()).data?.channels || []) for (const x of ch.items || []) {
-      if (seen.has(x.id) || x.endTime <= x.startTime) continue;
-      seen.add(x.id);
-      const name = (x.seriesName || x.programName).replace(/\*+$/, "").trim();
-      const photo = x.photo?.photoUrlBase;
-      out.push({
-        id: `${st.id}:${x.id}`, station: st.id,
-        start: new Date(x.startTime * 1000).toISOString(), end: new Date(x.endTime * 1000).toISOString(),
-        title: (x.heading || name).replace(/\*+$/, "").trim(), rerun: x.programName.trim().endsWith("*"),
-        description: stripHtml(x.lead),
-        show: { id: `${st.id}:${x.radiomanId}`, name, description: "", thumbnail: photo ? `https://s.err.ee/photo/${photo}` : null },
-      });
-    }
+let errSched = null, errHelpOpen = false; // {updated, episodes}
+const errStations = () => stations.filter((s) => s.schedule?.type === "err");
+function applyErrSched() {
+  const lo = Date.now() - 6 * 3600e3;
+  for (const st of errStations()) {
+    if (st.server) continue;
+    const eps = (errSched?.episodes || []).filter((e) => e.station === st.id && Date.parse(e.end) > lo);
+    if (eps.length) schedules[st.id] = eps.sort((a, b) => a.start.localeCompare(b.start)); else delete schedules[st.id];
   }
-  return out.sort((a, b) => a.start.localeCompare(b.start));
 }
+const errEp = (stId, x) => {
+  const name = String(x.s || x.p || "").replace(/\*+$/, "").trim();
+  return { id: `${stId}:${+x.id}`, station: stId,
+    start: new Date(x.a * 1000).toISOString(), end: new Date(x.b * 1000).toISOString(),
+    title: String(x.h || name).replace(/\*+$/, "").trim(), rerun: String(x.p || "").trim().endsWith("*"),
+    description: stripHtml(x.l),
+    show: { id: `${stId}:${+x.r}`, name, description: "", thumbnail: x.f ? `https://s.err.ee/photo/${String(x.f).replace(/^\/+/, "")}` : null } };
+};
+let errImportDone = null;
+addEventListener("message", async (e) => {
+  if (e.origin !== ERR_ORIGIN || e.data?.type !== "raadio-err" || !Array.isArray(e.data.items)) return;
+  const reply = () => { try { e.source.postMessage("raadio-err-ok", e.origin); } catch {} };
+  if (errImportDone) return errImportDone.then(reply);  // järjehoidja saadab korduvalt, kuni kinnitame
+  errImportDone = (async () => {
+    await appReady;
+    const byChannel = Object.fromEntries(errStations().map((s) => [s.schedule.channel, s.id]));
+    const episodes = e.data.items.filter((x) => byChannel[x.c] && x.b > x.a).map((x) => errEp(byChannel[x.c], x));
+    const res = await api("/api/err-schedule", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ episodes }) });
+    errSched = { updated: res.updated, episodes };
+    applyErrSched();
+    await syncBrowserShows();
+    toast(`ERR-i kava uuendatud (${res.count} saadet)`);
+    if (location.hash === "#errimport") history.replaceState(null, "", location.pathname);
+    render();
+  })().catch((err) => { console.error(err); toast("ERR-i kava salvestamine ebaõnnestus"); errImportDone = null; throw err; });
+  errImportDone.then(reply).catch(() => {});
+});
+// järjehoidja (bookmarklet): käivitatakse ERR-i lehel, saadab kava sellele aadressile
+function errBookmarklet() {
+  const code = `(async()=>{const T=${JSON.stringify(location.origin)},C=${JSON.stringify(errStations().map((s) => s.schedule.channel))};
+if(location.hostname!=="eestiraadio.err.ee"){if(confirm("Seda nuppu klõpsa ERR-i raadiolehel (eestiraadio.err.ee). Avan selle?"))location.href="https://eestiraadio.err.ee/vikerraadio/kava";return}
+const w=window.open(T+"/#errimport","raadiosalvesti");if(!w){alert("Brauser blokeeris uue akna – luba hüpikaknad sellel lehel ja proovi uuesti.");return}
+const Z="Europe/Tallinn",mid=(y,m,d)=>{const u=Date.UTC(y,m-1,d,12),l=new Date(new Date(u).toLocaleString("en-US",{timeZone:Z})+" UTC");return(Date.UTC(y,m-1,d)-(l-u))/1e3};
+const it=[],seen=new Set();
+for(const c of C)for(const o of[1,4,7]){const[y,m,d]=new Date(Date.now()+o*864e5).toLocaleDateString("sv-SE",{timeZone:Z}).split("-").map(Number);
+try{const r=await fetch("/api/v1/getSchedule/"+c+"/"+mid(y,m,d)+"?adjacentDays=1");if(!r.ok)continue;const j=await r.json();
+for(const ch of(j.data&&j.data.channels)||[])for(const x of ch.items||[]){if(seen.has(c+x.id))continue;seen.add(c+x.id);
+it.push({c,id:x.id,r:x.radiomanId,p:x.programName,s:x.seriesName,h:x.heading,l:(x.lead||"").slice(0,600),a:x.startTime,b:x.endTime,f:x.photo&&x.photo.photoUrlBase})}}catch(e){}}
+if(!it.length){alert("ERR-i kava ei õnnestunud lugeda.");return}
+let ok=false;addEventListener("message",e=>{if(e.origin===T&&e.data==="raadio-err-ok")ok=true});
+for(let i=0;i<60&&!ok;i++){try{w.postMessage({type:"raadio-err",v:1,items:it},T)}catch(e){}await new Promise(r=>setTimeout(r,500))}
+alert(ok?"ERR-i kava saadetud Raadiosalvestisse ("+it.length+" saadet).":"Raadiosalvesti leht ei vastanud. Kas oled seal sisse loginud?")})()`;
+  return "javascript:" + encodeURIComponent(code.replace(/\n/g, ""));
+}
+const errHelp = () => `<div class="errhelp">
+  <p><b>ERR-i kava tuleb tuua ERR-i lehelt</b> (ERR ei luba seda alates oktoobrist teistel lehtedel laadida).</p>
+  <ol><li>Lohista see nupp brauseri järjehoidjaribale (arvutis, üks kord): <a class="btn primary bm" href="${esc(errBookmarklet())}" onclick="event.preventDefault();alert('Lohista nupp järjehoidjaribale, siis ava eestiraadio.err.ee ja klõpsa seal järjehoidjat.')">📻 ERR → Raadiosalvesti</a></li>
+  <li>Ava <a href="${ERR_ORIGIN}/vikerraadio/kava" target="_blank" rel="noopener">eestiraadio.err.ee</a> ja klõpsa järjehoidjat. Kava jõuab siia ~9 päevaks; uuenda kord nädalas.</li></ol>
+  <p><small>Salvestada saab ka ilma kavata: <b>Taimerid</b> või ⏺ Salvesta.</small></p></div>`;
 // NB: tagastab Promise'i ainult siis, kui päriselt laeb (muidu render() -> then -> render() tsükkel)
 // brauser laeb ise ainult ERR-i kava; ülejäänu (Kuku, Sky) tuleb salvestilt schedule.json-ist
 const browserSched = (st) => st?.schedule?.type === "err";
 function loadStation(id) {
   const st = stationById(id);
-  if (!st || st.server || !browserSched(st)) return Promise.resolve(schedules[id] || null);
+  if (!st || st.server || !browserSched(st) || st.schedule?.type === "err") return Promise.resolve(schedules[id] || null);
   if (schedules[id]) return Promise.resolve(schedules[id]);
   if (!loading[id]) {
     delete loadFailed[id];
@@ -338,6 +373,7 @@ function renderKava(main) {
       $("#retry").onclick = () => { delete loadFailed[selectedStation]; render(); };
       return;
     }
+    if (st?.schedule?.type === "err" && !st.server) { main.innerHTML = chips + errHelp(); bindStations(main); return; }
     main.innerHTML = chips + `<div class="empty">${st && st.server ? "Kava pole veel salvestilt saabunud."
       : st && ["kuku", "sky"].includes(st.schedule?.type) ? "Selle jaama kava laeb salvesti – uuenda salvestit (<code>raadio update</code>).<br><small>Taimer ja ⏺ Salvesta töötavad ka praegu.</small>"
       : st && !browserSched(st) ? "Selle jaama kava pole saadaval – kasuta taimerit või ⏺ Salvesta."
@@ -354,7 +390,13 @@ function renderKava(main) {
   if (!days.includes(selectedDay)) selectedDay = days.find((d) => d === dayKey(new Date().toISOString())) || days[0];
   const now = Date.now();
   const eps = schedule.filter((e) => dayKey(e.start) === selectedDay);
-  main.innerHTML = chips + `<div class="days">${days.map((d) => `<button data-day="${d}" class="${d === selectedDay ? "on" : ""}">${dayLabel(d)}</button>`).join("")}</div>
+  const stSel = stationById(selectedStation);
+  let errInfo = "";
+  if (stSel?.schedule?.type === "err" && !stSel.server && errSched?.updated) {
+    const until = Date.parse(schedule[schedule.length - 1].end), daysLeft = (until - now) / 86400e3;
+    errInfo = `<div class="errinfo ${daysLeft < 3 ? "old" : ""}">ERR-i kava toodud ${fmtDate(errSched.updated)}, ulatub ${fmtDate(new Date(until).toISOString())}-ni${daysLeft < 3 ? " – aeg uuendada" : ""} · <button onclick="errHelpOpen=!errHelpOpen;render()">${errHelpOpen ? "peida juhend" : "uuenda"}</button></div>${errHelpOpen ? errHelp() : ""}`;
+  }
+  main.innerHTML = chips + errInfo + `<div class="days">${days.map((d) => `<button data-day="${d}" class="${d === selectedDay ? "on" : ""}">${dayLabel(d)}</button>`).join("")}</div>
     <div class="list">${eps.map((e) => {
       const past = Date.parse(e.end) < now, live = !past && Date.parse(e.start) <= now, mark = willRecord(e);
       return `<button class="row ${past ? "past" : ""} ${mark ? "marked" : ""}" data-ep="${e.id}">
@@ -823,9 +865,12 @@ document.addEventListener("keydown", (e) => {
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); if (tab !== "kava") loadRecordings(); });
 async function loadRecordings() { try { recordings = await api("/api/recordings"); render(); } catch (e) { console.error(e); } }
 async function loadStatus() { try { status = await api("/api/status"); renderStatus(); } catch {} }
+let appReadyResolve; const appReady = new Promise((r) => (appReadyResolve = r));
+if (location.hash === "#errimport") toast("Ootan ERR-i kava…");
 (async () => {
   render();
-  const [s, c] = await Promise.allSettled([api("/api/schedule"), api("/api/config")]);
+  const [s, c, ek] = await Promise.allSettled([api("/api/schedule"), api("/api/config"), api("/api/err-schedule")]);
+  if (ek.status === "fulfilled") errSched = ek.value;
   if (s.status === "fulfilled") {
     stations = s.value.stations;
     storageKind = s.value.storage || "r2";
@@ -837,6 +882,8 @@ async function loadStatus() { try { status = await api("/api/status"); renderSta
     // vanad numbrilised Kuku ID-d
     for (const x of config.shows) if (!String(x.id).includes(":")) Object.assign(x, { id: `kuku:${x.id}`, station: "kuku" });
   }
+  applyErrSched();
+  appReadyResolve();
   render(); loadStatus(); loadRecordings();
   syncBrowserShows().catch(console.error);
   if (OFFLINE_OK) { navigator.serviceWorker.register("/sw.js").catch(console.error); loadOffline().then(render); }

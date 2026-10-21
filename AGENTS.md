@@ -40,6 +40,7 @@ R2:                  arvuti = salvesti ──▶ Cloudflare R2 ◀── Cloudfl
 
 - `config.json` – kasutaja valikud (veebileht kirjutab, salvesti loeb): `shows` (terve saade, `keep` = mitu viimast saatepäeva alles), `episodes` (konkreetsed ajad; `auto: true` = brauser koostas ERR-i saate tellimusest), `timers` (jaam + nädalapäevad 0=E … 6=P + `HH:MM`).
 - `schedule.json` – serveripoolne kava (Kuku ja Sky Media jaamad).
+- `err_schedule.json` – ERR-i kava, mille kasutaja tõi ERR-i lehelt järjehoidjaga (`/api/err-schedule`; vt veaotsing). Veebileht koostab sellest tellitud saadete episoodid (`config.episodes`, `auto: true`).
 - `status.json` – salvesti olek (uuendub ~20 s järel; veebileht näitab „Salvesti vaikib“, kui üle 3 min vana).
 - `rec/<kuupäev>_<HHMM>_<jaam>_<saade>.mp3` + `.json` (metaandmed) – valmis salvestused.
 - `config.json` → `feed_token` – privaatse podcasti-feedi võti: `/feed/<võti>/koik.xml`, `/feed/<võti>/<saate-slug>.xml`, helifailid `/feed/<võti>/audio/rec/…`. Võti asendab parooli ainult nende aadresside jaoks (`web/functions/feed/`, `recorder/webserver.py`). Soovita AntennaPodi / Apple Podcastsi; mitte serveripõhiseid rakendusi (Pocket Casts, Overcast), sest need lekitaksid võtme ja ei ulatu kohtvõrku.
@@ -101,7 +102,7 @@ Logi: macOS `~/Library/Logs/raadiosalvestaja.log`, Windows `%LOCALAPPDATA%\Raadi
 | Leht ütleb „Salvesti vaikib“ | `raadio` – kas teenus töötab; `raadio log`; arvuti unerežiimis? |
 | Leht ei avane, „took too long to respond“ | IP-aadress võis muutuda (DHCP) või on valesti tipitud – `raadio` näitab kehtivat; samas arvutis kasuta `http://localhost:8788`; püsiv aadress = IP reserveerimine ruuteris |
 | Telefon ei ava kohalikku lehte | sama Wi-Fi? Windows: tulemüüri reegel `Raadiosalvestaja` (privaatvõrk); `raadio url` õige IP? |
-| ERR-i kava ei lae | alates 10.2026 on ERR-i raadiod `eestiraadio.err.ee` all; uus API (`/api/v1/getSchedule/<kanal>/<kesköö unix>?adjacentDays=1`) ei luba teistelt saitidelt päringuid (CORS) ja on robotikaitse taga – **ära möödu** (ei proxy't, `curl`-i ega brauseri matkimist). ERR-i jaamu saab salvestada taimeri ja ⏺ Salvesta abil; voog (`icecast.err.ee`) töötab |
+| ERR-i kava ei lae | alates 10.2026 on ERR-i raadiod `eestiraadio.err.ee` all; uus API (`/api/v1/getSchedule/<kanal>/<kesköö unix>?adjacentDays=1`) ei luba teistelt saitidelt päringuid (CORS) ja on robotikaitse taga – **ära möödu** (ei proxy't, `curl`-i, peidetud brauserit ega brauseri matkimist). Lahendus: kasutaja toob kava ise – Kava → ERR-i jaam → lohista nupp „📻 ERR → Raadiosalvesti“ järjehoidjaribale, ava eestiraadio.err.ee ja klõpsa seda (kehtib ~9 päeva, uuenda kord nädalas; arvutis, hüpikaknad lubatud). Ilma kavata: taimer või ⏺ Salvesta |
 | Salvestus tühi / katkeb | `raadio test 20 <jaam>`; voo URL muutunud? (`stations.json`, Kuku jaoks ka `KUKU_STREAM_URL`) |
 | Podcastirakendus ei uuenda | kohalikus režiimis peab telefon lehe aadressini ulatuma (koduvõrk/Tailscale); kas võti vahetati? (`raadio url`, „Minu saated“ → Podcast) |
 | Telefoni laadimise nupp puudub | vajab https-i (Pages või Tailscale); tavalise `http://…:8788` peal saab ainult MP3 failina salvestada |
