@@ -199,7 +199,7 @@ const stationById = (id) => stations.find((s) => s.id === id);
 const stationName = (id) => stationById(id)?.name || id || "";
 
 // --- ERR-i kava: laetakse brauseris (serveripoolne päring on Cloudflare'i robotikaitse taga) ---
-// ERR (eestiraadio.err.ee, alates 10.2026): kava-API ei luba teistelt saitidelt päringuid ja on robotikaitse taga.
+// ERR (eestiraadio.err.ee): kava-API ei luba teistelt saitidelt päringuid ja on robotikaitse taga.
 // Kasutaja toob kava ise: järjehoidja-nupp loeb ERR-i lehel (päris brauseris, ERR-i enda API) kava ja saadab selle
 // postMessage'iga siia → /api/err-schedule (err_schedule.json) → nähtav kõigis seadmetes, tellimused nagu varem.
 const ERR_ORIGIN = "https://eestiraadio.err.ee";
@@ -259,8 +259,9 @@ alert(ok?"ERR-i kava saadetud Raadiosalvestisse ("+it.length+" saadet).":"Raadio
   return "javascript:" + encodeURIComponent(code.replace(/\n/g, ""));
 }
 const errHelp = () => `<div class="errhelp">
-  <p><b>ERR-i kava tuleb tuua ERR-i lehelt</b> (ERR ei luba seda alates oktoobrist teistel lehtedel laadida).</p>
-  <ol><li>Lohista see nupp brauseri järjehoidjaribale (arvutis, üks kord): <a class="btn primary bm" href="${esc(errBookmarklet())}" onclick="event.preventDefault();alert('Lohista nupp järjehoidjaribale, siis ava eestiraadio.err.ee ja klõpsa seal järjehoidjat.')">📻 ERR → Raadiosalvesti</a></li>
+  <p><b>ERR-i kava tuleb tuua ERR-i lehelt</b> (ERR muutis oma saiti ega luba kava enam teistel lehtedel laadida).</p>
+  <ol><li>Lohista see nupp brauseri järjehoidjaribale (arvutis, üks kord). Kui järjehoidjariba pole näha, lülita see sisse –
+    Chrome'is <b>Seaded → Välimus → Järjehoidjariba → Kuva alati</b>: <a class="btn primary bm" href="${esc(errBookmarklet())}" onclick="event.preventDefault();alert('Lohista nupp järjehoidjaribale, siis ava eestiraadio.err.ee ja klõpsa seal järjehoidjat.')">📻 ERR → Raadiosalvesti</a></li>
   <li>Ava <a href="${ERR_ORIGIN}/vikerraadio/kava" target="_blank" rel="noopener">eestiraadio.err.ee</a> ja klõpsa järjehoidjat. Kava jõuab siia ~9 päevaks; uuenda kord nädalas.</li></ol>
   <p><small>Salvestada saab ka ilma kavata: <b>Taimerid</b> või ⏺ Salvesta.</small></p></div>`;
 // NB: tagastab Promise'i ainult siis, kui päriselt laeb (muidu render() -> then -> render() tsükkel)

@@ -39,7 +39,7 @@ R2:                   Mac: salvesti ──▶ Cloudflare R2 ◀── Cloudflare
 - **⬇ Laadi telefoni** – salvestus jääb brauserisse, leht ja pleier töötavad ka ilma võrguta (📱). Vajab **https**-i: R2/Pages režiimis alati olemas, kohalikus režiimis Tailscale'iga. iPhone'is lisa leht avaekraanile (Jaga → Lisa avaekraanile), muidu võib Safari andmed mõne nädala pärast kustutada.
 - **Salvesta failina** – MP3 telefoni Failid-äppi, töötab alati.
 
-**ERR-i kava.** ERR ei luba alates oktoobrist 2026 oma kava teistel lehtedel laadida. Kava tood ise: Kava → mõni ERR-i jaam → lohista nupp **„📻 ERR → Raadiosalvesti“** brauseri järjehoidjaribale, ava [eestiraadio.err.ee](https://eestiraadio.err.ee) ja klõpsa järjehoidjat. Kava kehtib ~9 päeva – uuenda kord nädalas. Tellitud ERR-i saated salvestatakse nagu varem.
+**ERR-i kava.** ERR muutis oma saiti ega luba kava enam teistel lehtedel laadida. Kava tood ise: Kava → mõni ERR-i jaam → lohista nupp **„📻 ERR → Raadiosalvesti“** brauseri järjehoidjaribale (kui riba pole näha, Chrome'is: Seaded → Välimus → Järjehoidjariba → Kuva alati), ava [eestiraadio.err.ee](https://eestiraadio.err.ee) ja klõpsa järjehoidjat. Kava kehtib ~9 päeva – uuenda kord nädalas. Tellitud ERR-i saated salvestatakse nagu varem.
 
 **Autos (Android Auto, CarPlay).** „Minu saated“ → **Podcast** → lülita sisse ja lisa aadress podcastirakendusse: **AntennaPod** (Android) või **Apple Podcasts** (iPhone). Rakendus laeb salvestused telefoni, autos kuulad neid nagu podcaste. Feedi aadressis on salajane võti (`config.json` → `feed_token`), mis avab ainult salvestused; võtit saab vahetada. Ära kasuta Pocket Castsi ega Overcasti – need loevad feede oma serverite kaudu.
 
