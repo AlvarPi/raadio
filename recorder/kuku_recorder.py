@@ -741,6 +741,7 @@ class Recorder:
             "next": upcoming[:5],
             "last_error": self.last_error,
             "version": self.version,
+            "version_date": version_info()[1],  # veebileht (R2) võrdleb oma versiooniga → „uuenda veebilehte“
             "update": self.update,
         })
 

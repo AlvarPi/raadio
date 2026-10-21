@@ -337,6 +337,11 @@ function bindKeep(root, after) {
 }
 
 // --- staatus ---
+// R2: veebileht tuleb kasutaja GitHubi koopiast (fork) – `raadio update` seda ei uuenda
+let uiVer = null; // /version.json (publish.sh kirjutab avalikku reposse)
+const FORK_HELP = "Uuenda ka veebilehte: GitHubis ava oma raadio koopia (fork) → „Sync fork“ → „Update branch“. Cloudflare avaldab uue versiooni paari minutiga.";
+const webOutdated = () => storageKind === "r2" && uiVer?.date && status?.version_date
+  && Date.parse(uiVer.date) < Date.parse(status.version_date) - 60e3;
 function renderStatus() {
   const el = $("#status");
   if (!status) { el.className = "err"; el.innerHTML = '<span class="dot"></span>Salvesti pole veel ühendust võtnud'; return; }
@@ -352,10 +357,13 @@ function renderStatus() {
   const n = status.next?.[0];
   el.innerHTML = `<span class="dot"></span>` + (n ? `Järgmine: ${esc(n.title)} · ${dayLabel(dayKey(n.start))} ${fmtTime(n.start)}` : "Valmis, midagi pole plaanis")
     + (status.last_error ? ` · ⚠︎ ${esc(status.last_error)}` : "")
-    + (status.update ? ` · <a href="#" id="upd" style="color:var(--accent);font-weight:600">⬆ Uuendus saadaval</a>` : "");
+    + (status.update ? ` · <a href="#" id="upd" style="color:var(--accent);font-weight:600">⬆ Uuendus saadaval</a>` : "")
+    + (!status.update && webOutdated() ? ` · <a href="#" id="webupd" style="color:var(--accent);font-weight:600">⬆ Uuenda veebilehte</a>` : "");
   const u = $("#upd", el);
   if (u) u.onclick = (e) => { e.preventDefault();
-    alert(`Uus versioon: ${status.update.latest}${status.update.notes ? "\n" + status.update.notes : ""}\n\nUuenda arvutis: ava terminal (Windowsis PowerShell) ja kirjuta\n\n    raadio update\n\nSeaded ja salvestused jäävad alles.`); };
+    alert(`Uus versioon: ${status.update.latest}${status.update.notes ? "\n" + status.update.notes : ""}\n\nUuenda arvutis: ava terminal (Windowsis PowerShell) ja kirjuta\n\n    raadio update\n\nSeaded ja salvestused jäävad alles.${storageKind === "r2" ? "\n\n" + FORK_HELP : ""}`); };
+  const w = $("#webupd", el);
+  if (w) w.onclick = (e) => { e.preventDefault(); alert(`Salvesti on uuem kui see veebileht.\n\n${FORK_HELP}`); };
 }
 
 // --- kava ---
@@ -872,6 +880,7 @@ if (location.hash === "#errimport") toast("Ootan ERR-i kava…");
   render();
   const [s, c, ek] = await Promise.allSettled([api("/api/schedule"), api("/api/config"), api("/api/err-schedule")]);
   if (ek.status === "fulfilled") errSched = ek.value;
+  fetch("/version.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((v) => { uiVer = v; renderStatus(); }).catch(() => {});
   if (s.status === "fulfilled") {
     stations = s.value.stations;
     storageKind = s.value.storage || "r2";

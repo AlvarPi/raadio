@@ -120,7 +120,7 @@ Ilma `AUTH_USER`/`AUTH_PASS` saladusteta ei lase leht kedagi sisse.
 | `raadio update` | uuenda uusimale versioonile (seaded ja salvestused jäävad alles) |
 | `raadio parool` | näita kasutajanime, sea uus parool või eemalda see (ununenud parool) |
 
-**Uuendused.** Salvesti kontrollib kord 12 tunni jooksul faili `https://raadio.mastering.ee/version.json` (muid andmeid ei saadeta). Kui on uuem versioon, näitavad seda veebileht („⬆ Uuendus saadaval“) ja `raadio`. Uuenda käsuga `raadio update` – see hoiatab, kui salvestus parasjagu käib. Kontrolli saab välja lülitada: `UPDATE_CHECK=0` seadete failis.
+**Uuendused.** Salvesti kontrollib kord 12 tunni jooksul faili `https://raadio.mastering.ee/version.json` (muid andmeid ei saadeta). Kui on uuem versioon, näitavad seda veebileht („⬆ Uuendus saadaval“) ja `raadio`. Uuenda käsuga `raadio update` – see hoiatab, kui salvestus parasjagu käib. Kontrolli saab välja lülitada: `UPDATE_CHECK=0` seadete failis. **Cloudflare'i (R2) variandis** tuleb veebileht sinu GitHubi koopiast – uuenda seda GitHubis: oma koopia → **Sync fork → Update branch** (leht näitab „⬆ Uuenda veebilehte“, kui salvesti on uuem).
 
 **Statistika.** raadio.mastering.ee loendab ainult päevaseid arve (lehe avamised, paigaldused, uuendused ja uuenduste kontrollid) – IP-aadresse ega muid isikuandmeid ei salvestata (`site/functions/`).
 
