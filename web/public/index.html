@@ -246,10 +246,10 @@ function errBookmarklet() {
   const code = `(async()=>{const T=${JSON.stringify(location.origin)},C=${JSON.stringify(errStations().map((s) => s.schedule.channel))};
 if(location.hostname!=="eestiraadio.err.ee"){if(confirm("Seda nuppu klõpsa ERR-i raadiolehel (eestiraadio.err.ee). Avan selle?"))location.href="https://eestiraadio.err.ee/vikerraadio/kava";return}
 const w=window.open(T+"/#errimport","raadiosalvesti");if(!w){alert("Brauser blokeeris uue akna – luba hüpikaknad sellel lehel ja proovi uuesti.");return}
-const Z="Europe/Tallinn",mid=(y,m,d)=>{const u=Date.UTC(y,m-1,d,12),l=new Date(new Date(u).toLocaleString("en-US",{timeZone:Z})+" UTC");return(Date.UTC(y,m-1,d)-(l-u))/1e3};
+const Z="Europe/Tallinn",off=ms=>new Date(new Date(ms).toLocaleString("en-US",{timeZone:Z})+" UTC")-ms,mid=(y,m,d)=>{let t=Date.UTC(y,m-1,d);for(let i=0;i<2;i++)t=Date.UTC(y,m-1,d)-off(t);return t/1e3};
 const it=[],seen=new Set();
 for(const c of C)for(const o of[1,4,7]){const[y,m,d]=new Date(Date.now()+o*864e5).toLocaleDateString("sv-SE",{timeZone:Z}).split("-").map(Number);
-try{const r=await fetch("/api/v1/getSchedule/"+c+"/"+mid(y,m,d)+"?adjacentDays=1");if(!r.ok)continue;const j=await r.json();
+try{let j=null;for(const dt of[0,3600,-3600]){const r=await fetch("/api/v1/getSchedule/"+c+"/"+(mid(y,m,d)+dt)+"?adjacentDays=1");if(!r.ok)continue;j=await r.json();if(((j.data&&j.data.channels)||[]).some(ch=>(ch.items||[]).length))break}if(!j)continue;
 for(const ch of(j.data&&j.data.channels)||[])for(const x of ch.items||[]){if(seen.has(c+x.id))continue;seen.add(c+x.id);
 it.push({c,id:x.id,r:x.radiomanId,p:x.programName,s:x.seriesName,h:x.heading,l:(x.lead||"").slice(0,600),a:x.startTime,b:x.endTime,f:x.photo&&x.photo.photoUrlBase})}}catch(e){}}
 if(!it.length){alert("ERR-i kava ei õnnestunud lugeda.");return}
@@ -284,7 +284,7 @@ function loadStation(id) {
 const PREDICT_DAYS = 28;
 const tzOff = (ms) => new Date(new Date(ms).toLocaleString("en-US", { timeZone: TZ }) + " UTC") - ms;
 const tallinnISO = (ymd, hm) => { const [y, m, d] = ymd.split("-").map(Number), [hh, mm] = hm.split(":").map(Number);
-  const g = Date.UTC(y, m - 1, d, hh, mm); return new Date(g - tzOff(g)).toISOString(); };
+  const g = Date.UTC(y, m - 1, d, hh, mm); let t = g; for (let i = 0; i < 2; i++) t = g - tzOff(t); return new Date(t).toISOString(); };
 const weekday = (ymd) => new Date(ymd + "T12:00:00Z").getUTCDay();
 const addDays = (ymd, n) => new Date(Date.parse(ymd + "T12:00:00Z") + n * 86400e3).toISOString().slice(0, 10);
 function predictWeekly(s, eps, lastDay, now) {
@@ -419,7 +419,7 @@ function renderKava(main) {
     }
     if (st?.schedule?.type === "err" && !st.server) { main.innerHTML = chips + errHelp(); bindStations(main); return; }
     main.innerHTML = chips + `<div class="empty">${st && st.server ? "Kava pole veel salvestilt saabunud."
-      : st && ["kuku", "sky"].includes(st.schedule?.type) ? "Selle jaama kava laeb salvesti – uuenda salvestit (<code>raadio update</code>).<br><small>Taimer ja ⏺ Salvesta töötavad ka praegu.</small>"
+      : st && ["kuku", "sky", "aripaev"].includes(st.schedule?.type) ? "Selle jaama kava laeb salvesti – uuenda salvestit (<code>raadio update</code>).<br><small>Taimer ja ⏺ Salvesta töötavad ka praegu.</small>"
       : st && !browserSched(st) ? "Selle jaama kava pole saadaval – kasuta taimerit või ⏺ Salvesta."
       : "Laen kava…"}</div>`;
     bindStations(main);

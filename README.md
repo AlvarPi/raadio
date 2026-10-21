@@ -2,7 +2,7 @@
 
 Isiklik ajanihke-salvesti Eesti raadiojaamade **vabalt kättesaadavale otse-eetrile** – nagu vanasti kassettmakk raadio kõrval. Vali kavast saated või sea taimer, sinu arvuti (Mac, Windows või Linux) salvestab need mono-MP3-na – oma kettale või soovi korral Cloudflare R2-sse – ja hiljem kuulad neid telefonist.
 
-Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tallinn, Sky Plus, Retro FM, Rock FM (lisa uusi failis [`web/stations.json`](web/stations.json)).
+Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tallinn, Sky Plus, Retro FM, Rock FM, Äripäeva raadio (lisa uusi failis [`web/stations.json`](web/stations.json)).
 
 > **⚠️ Ainult isiklikuks kasutamiseks.** See ei ole ühegi raadiojaama ametlik tööriist ega seotud nendega. Salvestused on autoriõigusega kaitstud: ära jaga neid, ära tee lehte avalikuks ega ehita sellest teenust teistele. Tööriist kasutab jaamade avalike veebipleierite voo- ja kava-aadresse, mis võivad igal ajal muutuda. Kasutad omal vastutusel.
 

@@ -6,7 +6,7 @@ See fail on mõeldud AI-agendile (Claude Code, Cursor, Codex jt), kes aitab kasu
 
 Isiklik ajanihke-salvesti Eesti raadiojaamade **vabalt edastatavale otse-eetrile**: kasutaja valib veebilehel saated või seab taimeri, kasutaja enda arvuti (Mac, Windows või Linux) salvestab need ffmpeg-iga mono-MP3-na ja kasutaja kuulab neid hiljem telefonist. Sarnane raadiost lindistamisele.
 
-Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tallinn, Sky Plus, Retro FM, Rock FM (`web/stations.json`).
+Jaamad: Raadio Kuku, Vikerraadio, Raadio 2, Klassikaraadio, Raadio 4, Raadio Tallinn, Sky Plus, Retro FM, Rock FM, Äripäeva raadio (`web/stations.json`).
 
 ## Piirid – järgi alati
 
@@ -34,12 +34,12 @@ R2:                  arvuti = salvesti ──▶ Cloudflare R2 ◀── Cloudfl
 | `site/install`, `site/install.ps1`, `site/linux` | ühe käsu alglaadijad (laevad repo alla ja käivitavad paigalduse) |
 | `web/functions/` | Cloudflare Pages Functions (R2 režiim): `api/schedule`, `api/config`, `api/status`, `api/recordings`, `audio/*`, `_middleware.js` (parool) |
 | `web/public/index.html` | kogu kasutajaliides (üks fail, vanilla JS), `sw.js` = offline/telefoni laadimine |
-| `web/stations.json` | jaamad: id, nimi, voo URL, kava tüüp (`kuku`, `sky` = salvesti laeb; `err` = brauseris) |
+| `web/stations.json` | jaamad: id, nimi, voo URL, kava tüüp (`kuku`, `sky`, `aripaev` = salvesti laeb – Äripäev saatekava lehe andmetest, iga 6 h; `err` = kasutaja toob järjehoidjaga) |
 
 ### Andmed salvestuses (kaust või R2 bucket)
 
 - `config.json` – kasutaja valikud (veebileht kirjutab, salvesti loeb): `shows` (terve saade, `keep` = mitu viimast saatepäeva alles), `episodes` (konkreetsed ajad; `auto: true` = brauser koostas ERR-i saate tellimusest), `timers` (jaam + nädalapäevad 0=E … 6=P + `HH:MM`; id `timer:<jaam>-<nimi>` – püsiv, et podcasti-feedi aadress jääks samaks).
-- `schedule.json` – serveripoolne kava (Kuku ja Sky Media jaamad).
+- `schedule.json` – serveripoolne kava (Kuku, Sky Media jaamad, Äripäeva raadio).
 - `err_schedule.json` – ERR-i kava, mille kasutaja tõi ERR-i lehelt järjehoidjaga (`/api/err-schedule`; vt veaotsing). Veebileht koostab sellest tellitud saadete episoodid (`config.episodes`, `auto: true`).
 - `status.json` – salvesti olek (uuendub ~20 s järel; veebileht näitab „Salvesti vaikib“, kui üle 3 min vana).
 - `rec/<kuupäev>_<HHMM>_<jaam>_<saade>.mp3` + `.json` (metaandmed) – valmis salvestused.

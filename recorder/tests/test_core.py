@@ -84,6 +84,22 @@ def test_err_planned_weekly_from_old_import():
     assert k.err_planned({"episodes": eps}, [], stations, now) == []  # tellimuseta ei salvesta
 
 
+def test_parse_aripaev_next_payload():
+    import json
+    items = [{"start": "2026-10-22T06:45:00+03:00", "end": "2026-10-22T10:00:00+03:00", "series": "Hommikuprogramm",
+              "seriesSlug": "hommikuprogramm", "title": "Tesla tulemused ", "host": "Lauri Leet", "description": "$73"},
+             {"start": "2026-10-22T18:00:00+03:00", "end": "2026-10-22T19:00:00+03:00", "series": "Juhi jutud",
+              "seriesSlug": "juhi-jutud", "title": "Halb juht *", "host": "Rivo Sarapik"},
+             {"start": "2026-10-22T20:00:00+03:00", "end": "2026-10-23T06:45:00+03:00", "series": "Muusika"}]
+    payload = '1:["$","div",null,{"days":' + json.dumps(items, ensure_ascii=False, separators=(",", ":")) + '}]'
+    html = '<script>self.__next_f.push([1,%s])</script>' % json.dumps(payload, ensure_ascii=False)
+    eps = k.parse_aripaev(html, {"id": "aripaev"})
+    assert [e["show"]["id"] for e in eps] == ["aripaev:hommikuprogramm", "aripaev:juhi-jutud", "aripaev:muusika"]
+    assert eps[0]["title"] == "Tesla tulemused" and eps[0]["description"] == "Saatejuht Lauri Leet" and not eps[0]["rerun"]
+    assert eps[1]["rerun"] and eps[1]["title"] == "Halb juht"
+    assert eps[2]["title"] == "Muusika 22.10.2026" and eps[0]["id"] == "aripaev:hommikuprogramm@2026-10-22T0645"
+
+
 def test_update_only_when_newer():
     assert k.is_newer("b", "2026-10-12T20:00:00+03:00", "a", "2026-10-12T19:00:00+03:00")
     assert not k.is_newer("b", "2026-10-12T17:50:56+03:00", "a", "2026-10-12T20:10:00+03:00")  # leht veel vana

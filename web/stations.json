@@ -25,5 +25,8 @@
     "schedule": { "type": "sky", "channel": "3" } },
   { "id": "rockfm", "name": "Rock FM", "short": "Rock",
     "stream": "https://stream.skymedia.ee/live/rck_AAC",
-    "schedule": { "type": "sky", "channel": "8" } }
+    "schedule": { "type": "sky", "channel": "8" } },
+  { "id": "aripaev", "name": "Äripäeva raadio", "short": "ÄP",
+    "stream": "https://liveplay.aripaev.ee/stream.mp3",
+    "schedule": { "type": "aripaev" } }
 ]
