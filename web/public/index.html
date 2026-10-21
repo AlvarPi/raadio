@@ -768,7 +768,12 @@ function renderTimers(main) {
     if (!stationById($("#tSt").value)) return toast("Vali jaam");
     if (!days.length || !$("#tStart").value || !$("#tEnd").value) return toast("Vali päevad ja kellaajad");
     if ($("#tStart").value === $("#tEnd").value) return toast("Algus ja lõpp ei saa olla samad");
-    config.timers.push({ id: "timer:" + Math.random().toString(36).slice(2, 10), station: $("#tSt").value, name, days,
+    // püsiv id jaamast + nimest → sama taimer uuesti lisades jääb podcasti-feedi aadress samaks
+    const slug = (`${$("#tSt").value}-${name}`).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 34) || "taimer";
+    let id = `timer:${slug}`;
+    for (let i = 2; config.timers.some((x) => x.id === id); i++) id = `timer:${slug}-${i}`;
+    config.timers.push({ id, station: $("#tSt").value, name, days,
       start: $("#tStart").value, end: $("#tEnd").value, keep: null, enabled: true });
     await saveConfig(); toast("Taimer lisatud");
   };

@@ -228,6 +228,53 @@ FETCHERS = {"kuku": fetch_kuku, "sky": fetch_sky}
 WEEKDAYS = "ETKNRLP"
 
 
+def err_planned(err_sched, shows, stations, now):
+    """ERR: kava toob kasutaja ERR-i lehelt (err_schedule.json, ~9 päeva). Tellitud saate episoodid sellest kavast +
+    nädalamuster kava lõpust edasi (eile..+2 p) – salvestus jätkub, kuni kasutaja tellimuse muudab, ka siis, kui kava
+    on ammu uuendamata. Id-d on samad mis veebilehe koostatud auto-episoodidel (dubleerimist pole)."""
+    tz = tallinn_tz()
+    loc = (lambda d: d.astimezone(tz)) if tz else (lambda d: d.astimezone())
+    by_station = {}
+    for e in (err_sched or {}).get("episodes") or []:
+        by_station.setdefault(e.get("station"), []).append(e)
+    lo, hi = now - timedelta(hours=6), now + timedelta(days=2)
+    today = loc(now).date()
+    out = []
+    for s in shows:
+        st = stations.get(s.get("station"))
+        all_eps = by_station.get(s.get("station"))
+        if not st or st["schedule"]["type"] != "err" or not all_eps:
+            continue
+        sid = norm_id(s["id"])
+        eps = [e for e in all_eps if (e.get("show") or {}).get("id") == sid and (not e.get("rerun") or s.get("reruns"))]
+        if not eps:
+            continue
+        last_day = max(loc(parse_ts(e["start"])).date() for e in all_eps)
+        out += [e for e in eps if parse_ts(e["end"]) > lo and parse_ts(e["start"]) < hi]
+        slots = {}
+        for e in eps:
+            a = loc(parse_ts(e["start"]))
+            slots[(a.isoweekday(), a.hour, a.minute)] = parse_ts(e["end"]) - parse_ts(e["start"])
+        for off in range(-1, 3):
+            day = today + timedelta(days=off)
+            if day <= last_day:
+                continue
+            for (wd, h, m), dur in slots.items():
+                if wd != day.isoweekday():
+                    continue
+                start = datetime(day.year, day.month, day.day, h, m, tzinfo=tz)
+                if not tz:
+                    start = start.astimezone()
+                out.append({
+                    "id": f"{sid}@{day.isoformat()}T{h:02d}{m:02d}", "station": st["id"],
+                    "start": start.isoformat(), "end": (start + dur).isoformat(),
+                    "title": f"{s.get('name') or eps[0]['show'].get('name')} {day:%d.%m.%Y}", "rerun": False, "description": "",
+                    "show": {"id": sid, "name": s.get("name") or eps[0]["show"].get("name"), "description": "",
+                             "thumbnail": eps[0]["show"].get("thumbnail")},
+                })
+    return out
+
+
 def expand_timers(timers, now):
     """Taimer {id, station, name, days:[0..6], start:"HH:MM", end:"HH:MM"} -> episoodid (eile..+2 p)."""
     out = []
@@ -362,6 +409,7 @@ class Recorder:
         self.lock = threading.Lock()
         self.schedule = []
         self.by_station = {}  # jaam -> viimati edukalt laetud episoodid
+        self.err_sched = {}   # kasutaja toodud ERR-i kava (err_schedule.json)
         self.schedule_at = None
         self.last_error = None
         self.config = {}
@@ -387,6 +435,10 @@ class Recorder:
         now = datetime.now(timezone.utc)
         if self.schedule_at and now - self.schedule_at < SCHEDULE_TTL:
             return
+        try:
+            self.err_sched = self.get_json("err_schedule.json", {}) or {}
+        except Exception as e:
+            log(f"ERR-i kava lugemine ebaõnnestus: {e}")  # jääb eelmine
         for sid, st in self.stations.items():
             if st["schedule"]["type"] not in FETCHERS:
                 continue
@@ -430,6 +482,9 @@ class Recorder:
             if ep is None and e.get("station") and e.get("show"):
                 ep = e  # brauseris koostatud (nt ERR) – ajad on kaasas
             if ep and emit(ep):
+                yield ep
+        for ep in err_planned(self.err_sched, config.get("shows", []), self.stations, datetime.now(timezone.utc)):
+            if emit(ep):
                 yield ep
         for ep in expand_timers(config.get("timers", []), datetime.now(timezone.utc)):
             if emit(ep):

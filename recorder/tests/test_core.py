@@ -62,6 +62,28 @@ def test_fetch_sky_weekly_template():
     assert night["show"]["name"] == "Öö" and morning[0]["show"]["thumbnail"] == "x.webp"
 
 
+def test_err_planned_weekly_from_old_import():
+    # kava toodud kuu aega tagasi: Vikerhommik E–R 05:30–09:00 (Tallinna aeg)
+    tz = k.tallinn_tz()
+    base = datetime(2026, 9, 14, 5, 30, tzinfo=tz)  # esmaspäev
+    eps = [{"id": f"vikerraadio:{i}", "station": "vikerraadio", "start": (base + timedelta(days=i)).isoformat(),
+            "end": (base + timedelta(days=i, hours=3, minutes=30)).isoformat(), "rerun": False,
+            "show": {"id": "vikerraadio:953", "name": "Vikerhommik", "thumbnail": None}} for i in range(5)]
+    eps.append({"id": "vikerraadio:99", "station": "vikerraadio", "start": (base + timedelta(days=8)).isoformat(),
+                "end": (base + timedelta(days=8, hours=1)).isoformat(), "rerun": True,
+                "show": {"id": "vikerraadio:1", "name": "Kordus", "thumbnail": None}})
+    stations = {"vikerraadio": {"id": "vikerraadio", "schedule": {"type": "err", "channel": "vikerraadio"}}}
+    shows = [{"id": "vikerraadio:953", "name": "Vikerhommik", "station": "vikerraadio"},
+             {"id": "vikerraadio:1", "name": "Kordus", "station": "vikerraadio"}]  # ainult kordused, reruns=False
+    now = datetime(2026, 10, 21, 12, tzinfo=timezone.utc)  # kolmapäev
+    out = k.err_planned({"episodes": eps}, shows, stations, now)
+    days = sorted({e["id"].split("@")[1][:10] for e in out})
+    assert days == ["2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"]  # T, K, N, R (eile..+2)
+    assert all(k.parse_ts(e["start"]).astimezone(tz).strftime("%H:%M") == "05:30" for e in out)
+    assert all(e["show"]["id"] == "vikerraadio:953" for e in out)
+    assert k.err_planned({"episodes": eps}, [], stations, now) == []  # tellimuseta ei salvesta
+
+
 def test_update_only_when_newer():
     assert k.is_newer("b", "2026-10-12T20:00:00+03:00", "a", "2026-10-12T19:00:00+03:00")
     assert not k.is_newer("b", "2026-10-12T17:50:56+03:00", "a", "2026-10-12T20:10:00+03:00")  # leht veel vana
