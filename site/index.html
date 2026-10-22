@@ -685,7 +685,7 @@
           arvutist või podcast-pleierist.</p>
         <a class="cta" href="#paigaldus">Paigalda</a><a class="cta ghost" href="https://github.com/pilvre/raadio"
           target="_blank" rel="noopener">Lähtekood</a>
-        <div class="meta">Tasuta · avatud lähtekood (MIT) · Mac, Windows ja Linux · ainult isiklikuks kasutamiseks</div>
+        <div class="meta">Tasuta · avatud lähtekood (MIT) · Mac, Windows ja Linux · ainult isiklikuks kasutamiseks<span id="views"></span></div>
       </div>
       <div class="phone" aria-hidden="true">
         <div class="bar"><span>9:41</span><span>● ● ●</span></div>
@@ -1036,6 +1036,9 @@
       s.type = "module"; s.src = "https://static.cloudflareinsights.com/beacon.min.js";
       s.dataset.cfBeacon = JSON.stringify({ token: "5c8bc185fcbb48a0af3ffb24eb0ad99f" });
       document.body.appendChild(s);
+      fetch("/count").then((r) => r.json()).then((d) => {
+        if (d.page_views > 0) document.getElementById("views").textContent = ` · ${d.page_views.toLocaleString("et-EE")} lehe avamist`;
+      }).catch(() => {});
     } else if (location.protocol.startsWith("http") && !/^(localhost|127\.|\[::1\])/.test(location.hostname)) {
       document.getElementById("forkwarn").hidden = false;
     }
