@@ -13,6 +13,16 @@ function when(iso) {
   return new Date(iso).toLocaleString("et-EE", { timeZone: TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+/** Apple Podcasts ei armasta WebP-d; paki CDN-i format(webp) lahti originaal-PNG/JPEG peale. */
+export function podcastArtUrl(url) {
+  if (!url) return null;
+  let u = String(url);
+  const m = u.match(/\/(https?:\/\/.+)$/i);
+  if (m) u = m[1];
+  u = u.replace(/format\(webp\)/gi, "format(jpeg)");
+  return u;
+}
+
 // recs: rec/*.json metaandmed; slug: "koik" või saate slug
 export function buildFeed(recs, { base, token, slug, name }) {
   const all = slug === "koik";
@@ -21,17 +31,23 @@ export function buildFeed(recs, { base, token, slug, name }) {
     .sort((a, b) => b.start.localeCompare(a.start));
   const first = items[0];
   const title = all ? "Raadiosalvesti" : `${first?.show || name || "Saade"} (Raadiosalvesti)`;
-  const image = all ? null : items.find((r) => r.thumbnail)?.thumbnail;
+  // Kanali kaanepilt: alati (iPhone Podcasts näitab channel artwork'i).
+  // koik.xml → stabiilne /podcast-cover.jpg; üksik saade → saate thumbnail (PNG/JPEG).
+  const cover = `${base}/podcast-cover.jpg`;
+  const showThumb = podcastArtUrl(items.find((r) => r.thumbnail)?.thumbnail);
+  const image = all ? cover : (showThumb || cover);
   const self = `${base}/feed/${token}/${slug}.xml`;
   const body = items.map((r) => {
     const t = `${all ? r.show + " · " : ""}${when(r.start)}${r.parts > 1 ? ` · osa ${r.part}/${r.parts}` : ""}${r.incomplete ? " (katkestatud)" : ""}`;
+    const epArt = podcastArtUrl(r.thumbnail) || cover;
     return `<item>
   <title>${x(t)}</title>
   <description>${x([r.title, r.station_name, r.description].filter(Boolean).join(" – "))}</description>
   <guid isPermaLink="false">${x(r.key)}</guid>
   <pubDate>${new Date(r.start).toUTCString()}</pubDate>
   <enclosure url="${x(`${base}/feed/${token}/audio/${r.key}`)}" length="${r.size || 0}" type="audio/mpeg"/>
-  <itunes:duration>${hms(r.duration)}</itunes:duration>${r.thumbnail ? `\n  <itunes:image href="${x(r.thumbnail)}"/>` : ""}
+  <itunes:duration>${hms(r.duration)}</itunes:duration>
+  <itunes:image href="${x(epArt)}"/>
 </item>`;
   }).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -42,8 +58,11 @@ export function buildFeed(recs, { base, token, slug, name }) {
 <atom:link href="${x(self)}" rel="self" type="application/rss+xml"/>
 <description>Isiklikud raadiosalvestused – privaatne feed, ära jaga.</description>
 <language>et</language>
+<itunes:author>Raadiosalvesti</itunes:author>
 <itunes:block>Yes</itunes:block>
-<itunes:explicit>false</itunes:explicit>${image ? `\n<itunes:image href="${x(image)}"/>\n<image><url>${x(image)}</url><title>${x(title)}</title><link>${x(base)}</link></image>` : ""}
+<itunes:explicit>false</itunes:explicit>
+<itunes:image href="${x(image)}"/>
+<image><url>${x(image)}</url><title>${x(title)}</title><link>${x(base)}</link></image>
 ${body}
 </channel>
 </rss>`;

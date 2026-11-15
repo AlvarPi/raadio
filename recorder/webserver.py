@@ -131,13 +131,26 @@ def _hms(sec):
     return f"{sec // 3600:02d}:{sec % 3600 // 60:02d}:{sec % 60:02d}"
 
 
+def podcast_art_url(url):
+    if not url:
+        return None
+    u = str(url)
+    m = re.search(r"/(https?://.+)$", u, re.I)
+    if m:
+        u = m.group(1)
+    u = re.sub(r"format\(webp\)", "format(jpeg)", u, flags=re.I)
+    return u
+
+
 def build_feed(recs, base, token, slug, name=None):
     from email.utils import format_datetime
     allf = slug == "koik"
     items = sorted((r for r in recs if r.get("key", "").startswith("rec/") and (allf or show_slug(r.get("show_id")) == slug)),
                    key=lambda r: r["start"], reverse=True)
     title = "Raadiosalvesti" if allf else f"{items[0]['show'] if items else (name or 'Saade')} (Raadiosalvesti)"
-    image = None if allf else next((r["thumbnail"] for r in items if r.get("thumbnail")), None)
+    cover = f"{base}/podcast-cover.jpg"
+    show_thumb = next((podcast_art_url(r["thumbnail"]) for r in items if r.get("thumbnail")), None)
+    image = cover if allf else (show_thumb or cover)
     out = []
     for r in items:
         st = parse_ts(r["start"])
@@ -164,8 +177,11 @@ def build_feed(recs, base, token, slug, name=None):
 <atom:link href="{_x(f'{base}/feed/{token}/{slug}.xml')}" rel="self" type="application/rss+xml"/>
 <description>Isiklikud raadiosalvestused – privaatne feed, ära jaga.</description>
 <language>et</language>
+<itunes:author>Raadiosalvesti</itunes:author>
 <itunes:block>Yes</itunes:block>
-<itunes:explicit>false</itunes:explicit>{img}
+<itunes:explicit>false</itunes:explicit>
+<itunes:image href="{_x(image)}"/>
+<image><url>{_x(image)}</url><title>{_x(title)}</title><link>{_x(base)}</link></image>
 {chr(10).join(out)}
 </channel>
 </rss>"""
